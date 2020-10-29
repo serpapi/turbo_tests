@@ -83,10 +83,8 @@ module TurboTests
         env["RSPEC_FORMATTER_OUTPUT_ID"] = SecureRandom.uuid
         env["RUBYOPT"] = "-I#{File.expand_path("..", __dir__)}"
 
-        command_name = Gem.win_platform? ? [Gem.ruby, "bin/rspec"] : "bin/rspec"
-
         command = [
-          *command_name,
+          "bundle", "exec", "rspec",
           *extra_args,
           "--format", "ParallelTests::RSpec::RuntimeLogger",
           "--out", @runtime_log,
@@ -100,7 +98,7 @@ module TurboTests
             command.join(" ")
           ].select { |x| x.size > 0 }.join(" ")
 
-          STDOUT.puts "Process #{process_id}: #{command_str}"
+          STDERR.puts "Process #{process_id}: #{command_str}"
         end
 
         _stdin, stdout, stderr, _wait_thr = Open3.popen3(env, *command)
