@@ -49,7 +49,7 @@ module TurboTests
     end
   end
 
-  FakeExample = Struct.new(:execution_result, :location, :full_description, :metadata, :location_rerun_argument)
+  FakeExample = Struct.new(:execution_result, :location, :description, :full_description, :metadata, :location_rerun_argument)
   class FakeExample
     def self.from_obj(obj)
       metadata = obj["metadata"]
