@@ -1,12 +1,59 @@
 # TurboTests
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/turbo_tests`. To experiment with that code, run `bin/console` for an interactive prompt.
+Runner for [`grosser/parallel_tests`](https://github.com/grosser/parallel_tests) with incremental summarized output. Based on [Discourse](https://github.com/discourse/discourse/blob/6b9784cf8a18636bce281a7e4d18e65a0cbc6290/lib/turbo_tests.rb) and [RubyGems](https://github.com/rubygems/rubygems/tree/390335ceb351668cd433bd5bb9823dd021f82533/bundler/tool) work in this area.
 
-TODO: Delete this and the text above, and describe your gem
+This feature [doesn't fit vision of `parallel_tests` author](https://github.com/grosser/parallel_tests/issues/708) and [RSpec doesn't support built-in parallel testing yet](https://github.com/rspec/rspec-rails/issues/2104#issuecomment-658474900). This gem would not be useful once one of the issues above will be implemented.
+
+## Why incremental output?
+
+`parallel_tests` is great, but it messes output:
+
+```bash
+
+$ bundle exec rake parallel_tests:spec[^spec/search]
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+
+Finished in 1 minute 6.92 seconds (files took 6.95 seconds to load)
+2616 examples, 0 failures
+
+.........................................................................................................................................F.................................................
+.......................................................................................F...................................................................................................
+...........................................................................................................................................................................................
+
+Finished in 1 minute 35.05 seconds (files took 6.26 seconds to load)
+2158 examples, 2 failures
+
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+
+Finished in 1 minute 35.05 seconds (files took 6.26 seconds to load)
+2158 examples, 0 failures
+```
+
+`turbo_tests` output looks like regular `rspec`:
+
+```bash
+$ bundle exec turbo_spec
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+.........................................................................................................................................F.................................................
+.......................................................................................F...................................................................................................
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+...........................................................................................................................................................................................
+
+Finished in 2 minute 25.15 seconds (files took 0 seconds to load)
+6873 examples, 2 failures
+```
 
 ## Installation
 
-Add this line to your application's Gemfile:
+Add this line to your application's `Gemfile`:
 
 ```ruby
 gem 'turbo_tests'
@@ -22,7 +69,27 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Execute tests:
+
+```bash
+$ bundle exec turbo_tests
+```
+
+Show help:
+
+```bash
+$ bundle exec turbo_tests -h
+Usage: turbo_tests [options]
+    -r, --require PATH               Require a file.
+    -f, --format FORMATTER           Choose a formatter.
+    -t, --tag TAG                    Run examples with the specified tag.
+    -o, --out FILE                   Write output to a file instead of $stdout
+    -v, --verbose                    More output
+        --fail-fast=[N]
+```
+
+## Roadmap
+- [ ] Capture time to load files #1
 
 ## Development
 
@@ -32,7 +99,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/turbo_tests. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/turbo_tests/blob/master/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/serpapi/turbo_tests. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/serpapi/turbo_tests/blob/master/CODE_OF_CONDUCT.md).
 
 
 ## License
@@ -41,4 +108,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the TurboTests project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/turbo_tests/blob/master/CODE_OF_CONDUCT.md).
+Everyone interacting in the TurboTests project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/serpapi/turbo_tests/blob/master/CODE_OF_CONDUCT.md).

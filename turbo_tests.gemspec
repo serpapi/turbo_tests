@@ -6,17 +6,14 @@ Gem::Specification.new do |spec|
   spec.authors = ["Ilya Zub"]
   spec.email = ["ilya@serpapi.com"]
 
-  spec.summary = "Write a short summary, because RubyGems requires one."
-  spec.description = "Write a longer description or delete this line."
-  spec.homepage = "https://example.com"
+  spec.summary = "Runner for grosser/parallel_tests with incremental summarized output. Based on Discourse and Rubygems work in this area."
+  spec.homepage = "https://github.com/serpapi/turbo_tests"
   spec.license = "MIT"
   spec.required_ruby_version = Gem::Requirement.new(">= 2.3.0")
 
-  spec.metadata["allowed_push_host"] = "TODO: Set to 'http://mygemserver.com'"
-
   spec.metadata["homepage_uri"] = spec.homepage
-  # spec.metadata["source_code_uri"] = "TODO: Put your gem's public repo URL here."
-  # spec.metadata["changelog_uri"] = "TODO: Put your gem's CHANGELOG.md URL here."
+  spec.metadata["source_code_uri"] = "https://github.com/serpapi/turbo_tests"
+  spec.metadata["changelog_uri"] = "https://github.com/serpapi/turbo_tests/releases"
 
   spec.add_dependency "rspec"
   spec.add_dependency "parallel_tests"
