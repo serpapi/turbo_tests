@@ -4,7 +4,7 @@ Gem::Specification.new do |spec|
   spec.name = "turbo_tests"
   spec.version = TurboTests::VERSION
   spec.authors = ["Ilya Zub"]
-  spec.email = ["ilya@serpapi.com"]
+  spec.email = ["zaoooza92@gmail.com"]
 
   spec.summary = "Runner for grosser/parallel_tests with incremental summarized output. Based on Discourse and Rubygems work in this area."
   spec.homepage = "https://github.com/serpapi/turbo_tests"

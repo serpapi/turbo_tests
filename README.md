@@ -80,16 +80,19 @@ Show help:
 ```bash
 $ bundle exec turbo_tests -h
 Usage: turbo_tests [options]
+
+[optional] Only selected files & folders:
+  turbo_tests spec/bar spec/baz/xxx_spec.rb
+
+Options:
+    -n [PROCESSES]                   How many processes to use, default: available CPUs
     -r, --require PATH               Require a file.
-    -f, --format FORMATTER           Choose a formatter.
+    -f, --format FORMATTER           Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress
     -t, --tag TAG                    Run examples with the specified tag.
     -o, --out FILE                   Write output to a file instead of $stdout
     -v, --verbose                    More output
         --fail-fast=[N]
 ```
-
-## Roadmap
-- [ ] Capture time to load files #1
 
 ## Development
 

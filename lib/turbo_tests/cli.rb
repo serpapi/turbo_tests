@@ -13,15 +13,31 @@ module TurboTests
       requires = []
       formatters = []
       tags = []
+      count = nil
       verbose = false
       fail_fast = nil
 
       OptionParser.new { |opts|
+        opts.banner = <<-BANNER.gsub(/^          /, "")
+          Run all tests in parallel, giving each process ENV['TEST_ENV_NUMBER'] ('1', '2', '3', ...).
+
+          Uses parallel_tests under the hood, but reports test results incrementally. Based on Discourse and RubyGems work in this area.
+
+          Usage: turbo_tests [options]
+
+          [optional] Only selected files & folders:
+            turbo_tests spec/bar spec/baz/xxx_spec.rb
+
+          Options:
+        BANNER
+
+        opts.on("-n [PROCESSES]", Integer, "How many processes to use, default: available CPUs") { |n| count = n }
+
         opts.on("-r", "--require PATH", "Require a file.") do |filename|
           requires << filename
         end
 
-        opts.on("-f", "--format FORMATTER", "Choose a formatter.") do |name|
+        opts.on("-f", "--format FORMATTER", "Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress") do |name|
           formatters << {
             name: name,
             outputs: []
@@ -76,7 +92,8 @@ module TurboTests
         tags: tags,
         files: @argv.empty? ? ["spec"] : @argv,
         verbose: verbose,
-        fail_fast: fail_fast
+        fail_fast: fail_fast,
+        count: count,
       )
     end
   end

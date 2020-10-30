@@ -13,6 +13,7 @@ module TurboTests
       start_time = opts.fetch(:start_time) { Time.now }
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
+      count = opts.fetch(:count, nil)
 
       reporter = Reporter.from_config(formatters, start_time)
 
@@ -21,7 +22,8 @@ module TurboTests
         files: files,
         tags: tags,
         verbose: verbose,
-        fail_fast: fail_fast
+        fail_fast: fail_fast,
+        count: count
       ).run
     end
 
@@ -31,6 +33,8 @@ module TurboTests
       @tags = opts[:tags]
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
+      @count = opts[:count]
+
       @failure_count = 0
       @runtime_log = "tmp/parallel_runtime_rspec.log"
 
@@ -39,7 +43,7 @@ module TurboTests
     end
 
     def run
-      @num_processes = ParallelTests.determine_number_of_processes(nil)
+      @num_processes = ParallelTests.determine_number_of_processes(@count)
 
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
