@@ -15,11 +15,10 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = "https://github.com/serpapi/turbo_tests"
   spec.metadata["changelog_uri"] = "https://github.com/serpapi/turbo_tests/releases"
 
-  spec.add_dependency "rspec"
-  spec.add_dependency "parallel_tests"
-  spec.add_dependency "optparse"
+  spec.add_dependency "rspec", "~> 3.9"
+  spec.add_dependency "parallel_tests", "~> 3.3"
 
-  spec.add_development_dependency "pry"
+  spec.add_development_dependency "pry", "~> 0.13"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
