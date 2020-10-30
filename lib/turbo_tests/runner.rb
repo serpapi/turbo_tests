@@ -43,7 +43,10 @@ module TurboTests
     end
 
     def run
-      @num_processes = ParallelTests.determine_number_of_processes(@count)
+      @num_processes = [
+        ParallelTests.determine_number_of_processes(@count),
+        ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size
+      ].min
 
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
@@ -51,6 +54,8 @@ module TurboTests
           @num_processes,
           runtime_log: @runtime_log
         )
+
+      report_number_of_tests(tests_in_groups)
 
       tests_in_groups.each_with_index do |tests, process_id|
         start_regular_subprocess(tests, process_id + 1)
@@ -179,6 +184,18 @@ module TurboTests
 
     def fail_fast_met
       !@fail_fast.nil? && @fail_fast >= @failure_count
+    end
+
+    private
+
+    def report_number_of_tests(groups)
+      name = ParallelTests::RSpec::Runner.test_file_name
+
+      num_processes = groups.size
+      num_tests = groups.map(&:size).sum
+      tests_per_process = (num_processes == 0 ? 0 : num_tests / num_processes)
+
+      puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
     end
   end
 end
