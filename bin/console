@@ -1,7 +1,0 @@
-#!/usr/bin/env ruby
-
-require "bundler/setup"
-require "turbo_tests"
-
-require "pry"
-Pry.start

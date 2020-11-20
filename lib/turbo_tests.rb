@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require "turbo_tests/version"
-require "bundler/setup"
-
 require "open3"
 require "fileutils"
 require "json"
@@ -16,6 +13,9 @@ require "turbo_tests/runner"
 require "turbo_tests/json_rows_formatter"
 
 module TurboTests
+  autoload :CLI, "turbo_tests/cli"
+  autoload :VERSION, "turbo_tests/version"
+
   FakeException = Struct.new(:backtrace, :message, :cause)
   class FakeException
     def self.from_obj(obj)
