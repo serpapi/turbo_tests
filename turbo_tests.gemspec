@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"] = "https://github.com/serpapi/turbo_tests"
   spec.metadata["changelog_uri"] = "https://github.com/serpapi/turbo_tests/releases"
 
-  spec.add_dependency "rspec", "~> 3.9"
+  spec.add_dependency "rspec", "~> 3.10.0"
   spec.add_dependency "parallel_tests", "~> 3.3"
 
   spec.add_development_dependency "pry", "~> 0.13"

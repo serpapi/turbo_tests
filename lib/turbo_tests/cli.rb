@@ -87,7 +87,7 @@ module TurboTests
         end
       end
 
-      exit TurboTests::Runner.run(
+      success = TurboTests::Runner.run(
         formatters: formatters,
         tags: tags,
         files: @argv.empty? ? ["spec"] : @argv,
@@ -95,6 +95,12 @@ module TurboTests
         fail_fast: fail_fast,
         count: count,
       )
+
+      if success
+        exit 0
+      else
+        exit 1
+      end
     end
   end
 end
