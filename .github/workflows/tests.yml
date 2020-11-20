@@ -9,7 +9,6 @@ jobs:
     strategy:
       matrix:
         ruby:
-          - 2.5
           - 2.6
           - 2.7
 
@@ -23,4 +22,4 @@ jobs:
       - name: Run tests
         timeout-minutes: 5
         run: |
-          ${{matrix.env}} bundle exec turbo_tests
+          ${{matrix.env}} bundle exec turbo_tests -n4
