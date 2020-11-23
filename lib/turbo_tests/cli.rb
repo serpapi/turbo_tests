@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "turbo_tests"
 require "optparse"
 
 module TurboTests

@@ -92,7 +92,7 @@ module TurboTests
         env["RUBYOPT"] = "-I#{File.expand_path("..", __dir__)}"
 
         command = [
-          "bundle", "exec", "rspec",
+          ENV["BUNDLE_BIN_PATH"], "exec", "rspec",
           *extra_args,
           "--seed", rand(2**16).to_s,
           "--format", "ParallelTests::RSpec::RuntimeLogger",
