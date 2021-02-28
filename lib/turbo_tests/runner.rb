@@ -7,6 +7,8 @@ require_relative "../utils/hash_extension"
 
 module TurboTests
   class Runner
+    using CoreExtensions
+
     def self.run(opts = {})
       files = opts[:files]
       formatters = opts[:formatters]
