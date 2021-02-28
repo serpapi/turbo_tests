@@ -33,6 +33,8 @@ module TurboTests
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
       @count = opts[:count]
+      @load_time = 0
+      @load_count = 0
 
       @failure_count = 0
       @runtime_log = "tmp/parallel_runtime_rspec.log"
@@ -160,6 +162,9 @@ module TurboTests
         when "example_pending"
           example = FakeExample.from_obj(message["example"])
           @reporter.example_pending(example)
+        when "load_summary"
+          message = message["summary"]
+          @reporter.load_time = message["load_time"] if message.fetch("count", 0) > @load_count
         when "example_failed"
           example = FakeExample.from_obj(message["example"])
           @reporter.example_failed(example)

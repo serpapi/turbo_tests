@@ -2,6 +2,8 @@
 
 module TurboTests
   class Reporter
+    attr_writer :load_time
+
     def self.from_config(formatter_config, start_time)
       reporter = new(start_time)
 
@@ -27,6 +29,7 @@ module TurboTests
       @failed_examples = []
       @all_examples = []
       @start_time = start_time
+      @load_time = 0
     end
 
     def add(name, outputs)
@@ -84,7 +87,7 @@ module TurboTests
           @all_examples,
           @failed_examples,
           @pending_examples,
-          0,
+          @load_time,
           0
         ))
       delegate_to_formatters(:close,

@@ -22,6 +22,7 @@ module TurboTests
   class JsonRowsFormatter
     RSpec::Core::Formatters.register(
       self,
+      :start,
       :close,
       :example_failed,
       :example_passed,
@@ -33,6 +34,13 @@ module TurboTests
 
     def initialize(output)
       @output = output
+    end
+
+    def start(notification)
+      output_row(
+        "type" => :load_summary,
+        "summary" => load_summary_to_json(notification)
+      )
     end
 
     def example_passed(notification)
@@ -110,6 +118,13 @@ module TurboTests
             example.metadata[:shared_group_inclusion_backtrace].map { |frame| stack_frame_to_json(frame) }
         },
         "location_rerun_argument" => example.location_rerun_argument
+      }
+    end
+
+    def load_summary_to_json(notification)
+      {
+        count: notification.count,
+        load_time: notification.load_time
       }
     end
 
