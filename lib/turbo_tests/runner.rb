@@ -3,13 +3,17 @@
 require "json"
 require "parallel_tests/rspec/runner"
 
+require_relative "../utils/hash_extension"
+
 module TurboTests
   class Runner
     def self.run(opts = {})
       files = opts[:files]
       formatters = opts[:formatters]
       tags = opts[:tags]
-      start_time = opts.fetch(:start_time) { Time.now }
+
+      # SEE: https://bit.ly/2NP87Cz
+      start_time = opts.fetch(:start_time) { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
@@ -157,6 +161,10 @@ module TurboTests
         when "example_passed"
           example = FakeExample.from_obj(message["example"])
           @reporter.example_passed(example)
+        when "group_started"
+          @reporter.group_started(message["example"].to_struct)
+        when "group_finished"
+          @reporter.group_finished
         when "example_pending"
           example = FakeExample.from_obj(message["example"])
           @reporter.example_pending(example)
