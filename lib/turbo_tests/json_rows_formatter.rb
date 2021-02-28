@@ -41,7 +41,7 @@ module TurboTests
     def example_group_started(notification)
       output_row(
         "type" => :group_started,
-        "example" => group_to_json(notification)
+        "group" => group_to_json(notification)
       )
     end
 
