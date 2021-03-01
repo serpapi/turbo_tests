@@ -17,7 +17,7 @@ module TurboTests
       fail_fast = nil
 
       OptionParser.new { |opts|
-        opts.banner = <<-BANNER.gsub(/^          /, "")
+        opts.banner = <<~BANNER
           Run all tests in parallel, giving each process ENV['TEST_ENV_NUMBER'] ('1', '2', '3', ...).
 
           Uses parallel_tests under the hood, but reports test results incrementally. Based on Discourse and RubyGems work in this area.

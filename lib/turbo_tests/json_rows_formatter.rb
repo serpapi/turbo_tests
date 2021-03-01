@@ -26,6 +26,9 @@ module TurboTests
       :example_failed,
       :example_passed,
       :example_pending,
+      :example_group_started,
+      :example_group_finished,
+      :example_pending,
       :seed
     )
 
@@ -33,6 +36,20 @@ module TurboTests
 
     def initialize(output)
       @output = output
+    end
+
+    def example_group_started(notification)
+      output_row(
+        "type" => :group_started,
+        "group" => group_to_json(notification)
+      )
+    end
+
+    def example_group_finished(notification)
+      output_row(
+        "type" => :group_finished,
+        "example" => group_to_json(notification)
+      )
     end
 
     def example_passed(notification)
@@ -110,6 +127,14 @@ module TurboTests
             example.metadata[:shared_group_inclusion_backtrace].map { |frame| stack_frame_to_json(frame) }
         },
         "location_rerun_argument" => example.location_rerun_argument
+      }
+    end
+
+    def group_to_json(notification)
+      {
+        "group": {
+          "description": notification.group.description
+        }
       }
     end
 

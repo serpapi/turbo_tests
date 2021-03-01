@@ -45,6 +45,14 @@ module TurboTests
       end
     end
 
+    def group_started(notification)
+      delegate_to_formatters(:example_group_started, notification)
+    end
+
+    def group_finished
+      delegate_to_formatters(:example_group_finished, nil)
+    end
+
     def example_passed(example)
       delegate_to_formatters(:example_passed, example.notification)
 
@@ -66,7 +74,8 @@ module TurboTests
     end
 
     def finish
-      end_time = Time.now
+      # SEE: https://bit.ly/2NP87Cz
+      end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       delegate_to_formatters(:start_dump,
         RSpec::Core::Notifications::NullNotification)
