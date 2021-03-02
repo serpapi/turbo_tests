@@ -27,6 +27,9 @@ module TurboTests
       :example_failed,
       :example_passed,
       :example_pending,
+      :example_group_started,
+      :example_group_finished,
+      :example_pending,
       :seed
     )
 
@@ -36,10 +39,25 @@ module TurboTests
       @output = output
     end
 
+
     def start(notification)
       output_row(
         "type" => :load_summary,
         "summary" => load_summary_to_json(notification)
+      )
+    end
+
+    def example_group_started(notification)
+      output_row(
+        "type" => :group_started,
+        "group" => group_to_json(notification)
+      )
+    end
+
+    def example_group_finished(notification)
+      output_row(
+        "type" => :group_finished,
+        "group" => group_to_json(notification)
       )
     end
 
@@ -125,6 +143,14 @@ module TurboTests
       {
         count: notification.count,
         load_time: notification.load_time
+      }
+    end
+
+    def group_to_json(notification)
+      {
+        "group": {
+          "description": notification.group.description
+        }
       }
     end
 
