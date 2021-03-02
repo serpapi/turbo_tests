@@ -164,6 +164,8 @@ module TurboTests
           @reporter.example_pending(example)
         when "load_summary"
           message = message["summary"]
+          # NOTE: notifications order and content is not guaranteed hence the fetch
+          #       and count increment tracking to get the latest accumulated load time
           @reporter.load_time = message["load_time"] if message.fetch("count", 0) > @load_count
         when "example_failed"
           example = FakeExample.from_obj(message["example"])
