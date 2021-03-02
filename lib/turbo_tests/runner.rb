@@ -39,6 +39,8 @@ module TurboTests
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
       @count = opts[:count]
+      @load_time = 0
+      @load_count = 0
 
       @failure_count = 0
       @runtime_log = "tmp/parallel_runtime_rspec.log"
@@ -170,6 +172,11 @@ module TurboTests
         when "example_pending"
           example = FakeExample.from_obj(message["example"])
           @reporter.example_pending(example)
+        when "load_summary"
+          message = message["summary"]
+          # NOTE: notifications order and content is not guaranteed hence the fetch
+          #       and count increment tracking to get the latest accumulated load time
+          @reporter.load_time = message["load_time"] if message.fetch("count", 0) > @load_count
         when "example_failed"
           example = FakeExample.from_obj(message["example"])
           @reporter.example_failed(example)
@@ -203,7 +210,7 @@ module TurboTests
 
       num_processes = groups.size
       num_tests = groups.map(&:size).sum
-      tests_per_process = (num_processes == 0 ? 0 : num_tests / num_processes)
+      tests_per_process = (num_processes == 0 ? 0 : num_tests.to_f / num_processes).round
 
       puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
     end
