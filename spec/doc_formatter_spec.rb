@@ -1,3 +1,5 @@
+# This delay visualizes the effect of load time calculation.
+# https://github.com/serpapi/turbo_tests/pull/8#issue-583037321
 sleep 3
 
 RSpec.describe "Top-level context" do
