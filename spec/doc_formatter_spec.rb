@@ -1,3 +1,5 @@
+sleep 3
+
 RSpec.describe "Top-level context" do
   describe "#instance_method" do
     it "does what it's supposed to" do

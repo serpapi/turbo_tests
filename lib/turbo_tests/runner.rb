@@ -210,7 +210,7 @@ module TurboTests
 
       num_processes = groups.size
       num_tests = groups.map(&:size).sum
-      tests_per_process = (num_processes == 0 ? 0 : num_tests / num_processes)
+      tests_per_process = (num_processes == 0 ? 0 : num_tests.to_f / num_processes).round
 
       puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
     end
