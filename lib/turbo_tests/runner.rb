@@ -83,7 +83,7 @@ module TurboTests
 
       report_number_of_tests(tests_in_groups)
 
-      tests_in_groups.each_with_index do |tests, process_id|
+      wait_threads = tests_in_groups.map.with_index do |tests, process_id|
         start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
       end
 
@@ -93,7 +93,7 @@ module TurboTests
 
       @threads.each(&:join)
 
-      @reporter.failed_examples.empty? && !@error
+      @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
     end
 
     private
@@ -188,6 +188,8 @@ module TurboTests
             @messages << {type: "error"}
           end
         }
+
+        wait_thr
       end
     end
 
@@ -234,8 +236,7 @@ module TurboTests
             break
           end
         when "message"
-          notification = RSpec::Core::Notifications::MessageNotification.new(message[:message])
-          @reporter.message(notification)
+          @reporter.message(message[:message])
         when "seed"
         when "close"
         when "error"

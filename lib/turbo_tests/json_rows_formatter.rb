@@ -30,6 +30,7 @@ module TurboTests
       :example_group_started,
       :example_group_finished,
       :example_pending,
+      :message,
       :seed
     )
 
