@@ -84,7 +84,7 @@ module TurboTests
     end
 
     def error_outside_of_examples
-      @errors_outside_of_examples_count += 12
+      @errors_outside_of_examples_count += 1
     end
 
     def finish
