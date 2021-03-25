@@ -28,8 +28,10 @@ module TurboTests
       @pending_examples = []
       @failed_examples = []
       @all_examples = []
+      @messages = []
       @start_time = start_time
       @load_time = 0
+      @errors_outside_of_examples_count = 0
     end
 
     def add(name, outputs)
@@ -76,6 +78,15 @@ module TurboTests
       @failed_examples << example
     end
 
+    def message(message)
+      delegate_to_formatters(:message, RSpec::Core::Notifications::MessageNotification.new(message))
+      @messages << message
+    end
+
+    def error_outside_of_examples
+      @errors_outside_of_examples_count += 1
+    end
+
     def finish
       # SEE: https://bit.ly/2NP87Cz
       end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -97,7 +108,7 @@ module TurboTests
           @failed_examples,
           @pending_examples,
           @load_time,
-          0
+          @errors_outside_of_examples_count
         ))
       delegate_to_formatters(:close,
         RSpec::Core::Notifications::NullNotification)

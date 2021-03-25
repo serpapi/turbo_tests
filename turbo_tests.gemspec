@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rspec", "~> 3.10.0"
   spec.add_dependency "parallel_tests", "~> 3.3"
 
-  spec.add_development_dependency "pry", "~> 0.13"
+  spec.add_development_dependency "pry", "~> 0.14"
 
   spec.add_runtime_dependency "bundler"
 
