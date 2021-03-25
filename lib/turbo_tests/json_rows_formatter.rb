@@ -30,6 +30,7 @@ module TurboTests
       :example_group_started,
       :example_group_finished,
       :example_pending,
+      :message,
       :seed
     )
 
@@ -39,59 +40,65 @@ module TurboTests
       @output = output
     end
 
-
     def start(notification)
       output_row(
-        "type" => :load_summary,
-        "summary" => load_summary_to_json(notification)
+        type: :load_summary,
+        summary: load_summary_to_json(notification)
       )
     end
 
     def example_group_started(notification)
       output_row(
-        "type" => :group_started,
-        "group" => group_to_json(notification)
+        type: :group_started,
+        group: group_to_json(notification)
       )
     end
 
     def example_group_finished(notification)
       output_row(
-        "type" => :group_finished,
-        "group" => group_to_json(notification)
+        type: :group_finished,
+        group: group_to_json(notification)
       )
     end
 
     def example_passed(notification)
       output_row(
-        "type" => :example_passed,
-        "example" => example_to_json(notification.example)
+        type: :example_passed,
+        example: example_to_json(notification.example)
       )
     end
 
     def example_pending(notification)
       output_row(
-        "type" => :example_pending,
-        "example" => example_to_json(notification.example)
+        type: :example_pending,
+        example: example_to_json(notification.example)
       )
     end
 
     def example_failed(notification)
       output_row(
-        "type" => :example_failed,
-        "example" => example_to_json(notification.example)
+        type: :example_failed,
+        example: example_to_json(notification.example)
       )
     end
 
     def seed(notification)
       output_row(
-        "type" => :seed,
-        "seed" => notification.seed
+        type: :seed,
+        seed: notification.seed
       )
     end
 
     def close(notification)
       output_row(
-        "type" => :close
+        type: :close
+      )
+    end
+
+    def message(notification)
+      output_row(
+        type: :message,
+        message: notification.message
       )
     end
 
@@ -100,62 +107,65 @@ module TurboTests
     def exception_to_json(exception)
       if exception
         {
-          "class_name" => exception.class.name.to_s,
-          "backtrace" => exception.backtrace,
-          "message" => exception.message,
-          "cause" => exception_to_json(exception.cause)
+          class_name: exception.class.name.to_s,
+          backtrace: exception.backtrace,
+          message: exception.message,
+          cause: exception_to_json(exception.cause)
         }
       end
     end
 
     def execution_result_to_json(result)
       {
-        "example_skipped?" => result.example_skipped?,
-        "pending_message" => result.pending_message,
-        "status" => result.status,
-        "pending_fixed?" => result.pending_fixed?,
-        "exception" => exception_to_json(result.exception)
+        example_skipped?: result.example_skipped?,
+        pending_message: result.pending_message,
+        status: result.status,
+        pending_fixed?: result.pending_fixed?,
+        exception: exception_to_json(result.exception)
       }
     end
 
     def stack_frame_to_json(frame)
       {
-        "shared_group_name" => frame.shared_group_name,
-        "inclusion_location" => frame.inclusion_location
+        shared_group_name: frame.shared_group_name,
+        inclusion_location: frame.inclusion_location
       }
     end
 
     def example_to_json(example)
       {
-        "execution_result" => execution_result_to_json(example.execution_result),
-        "location" => example.location,
-        "description" => example.description,
-        "full_description" => example.full_description,
-        "metadata" => {
-          "shared_group_inclusion_backtrace" =>
-            example.metadata[:shared_group_inclusion_backtrace].map { |frame| stack_frame_to_json(frame) }
+        execution_result: execution_result_to_json(example.execution_result),
+        location: example.location,
+        description: example.description,
+        full_description: example.full_description,
+        metadata: {
+          shared_group_inclusion_backtrace:
+            example
+              .metadata[:shared_group_inclusion_backtrace]
+              .map { |frame| stack_frame_to_json(frame) }
         },
-        "location_rerun_argument" => example.location_rerun_argument
+        location_rerun_argument: example.location_rerun_argument
       }
     end
 
     def load_summary_to_json(notification)
       {
         count: notification.count,
-        load_time: notification.load_time
+        load_time: notification.load_time,
       }
     end
 
     def group_to_json(notification)
       {
-        "group": {
-          "description": notification.group.description
+        group: {
+          description: notification.group.description
         }
       }
     end
 
     def output_row(obj)
-      output.puts ENV["RSPEC_FORMATTER_OUTPUT_ID"] + obj.to_json
+      output.puts(obj.to_json)
+      output.flush
     end
   end
 end

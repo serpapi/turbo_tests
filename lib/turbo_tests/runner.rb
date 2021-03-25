@@ -20,6 +20,10 @@ module TurboTests
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
 
+      if verbose
+        STDERR.puts "VERBOSE"
+      end
+
       reporter = Reporter.from_config(formatters, start_time)
 
       new(
@@ -41,12 +45,11 @@ module TurboTests
       @count = opts[:count]
       @load_time = 0
       @load_count = 0
-
       @failure_count = 0
-      @runtime_log = "tmp/parallel_runtime_rspec.log"
 
       @messages = Queue.new
       @threads = []
+      @error = false
     end
 
     def run
@@ -55,17 +58,33 @@ module TurboTests
         ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size
       ].min
 
+      use_runtime_info = @files == ["spec"]
+
+      group_opts = {}
+
+      if use_runtime_info
+        group_opts[:runtime_log] = "tmp/turbo_rspec_runtime.log"
+      else
+        group_opts[:group_by] = :filesize
+      end
+
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
           @files,
           @num_processes,
-          runtime_log: @runtime_log
+          **group_opts
         )
+
+      setup_tmp_dir
+
+      subprocess_opts = {
+        record_runtime: use_runtime_info
+      }
 
       report_number_of_tests(tests_in_groups)
 
-      tests_in_groups.each_with_index do |tests, process_id|
-        start_regular_subprocess(tests, process_id + 1)
+      wait_threads = tests_in_groups.map.with_index do |tests, process_id|
+        start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
       end
 
       handle_messages
@@ -74,38 +93,64 @@ module TurboTests
 
       @threads.each(&:join)
 
-      @reporter.failed_examples.empty?
+      @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
     end
 
-    protected
+    private
 
-    def start_regular_subprocess(tests, process_id)
+    def setup_tmp_dir
+      begin
+        FileUtils.rm_r("tmp/test-pipes")
+      rescue Errno::ENOENT
+      end
+
+      FileUtils.mkdir_p("tmp/test-pipes/")
+    end
+
+    def start_regular_subprocess(tests, process_id, **opts)
       start_subprocess(
         {"TEST_ENV_NUMBER" => process_id.to_s},
         @tags.map { |tag| "--tag=#{tag}" },
         tests,
-        process_id
+        process_id,
+        **opts
       )
     end
 
-    def start_subprocess(env, extra_args, tests, process_id)
+    def start_subprocess(env, extra_args, tests, process_id, record_runtime:)
       if tests.empty?
         @messages << {
-          "type" => "exit",
-          "process_id" => process_id
+          type: "exit",
+          process_id: process_id
         }
       else
-        require "securerandom"
-        env["RSPEC_FORMATTER_OUTPUT_ID"] = SecureRandom.uuid
-        env["RUBYOPT"] = "-I#{File.expand_path("..", __dir__)}"
+        tmp_filename = "tmp/test-pipes/subprocess-#{process_id}"
+
+        begin
+          File.mkfifo(tmp_filename)
+        rescue Errno::EEXIST
+        end
+
+        env["RUBYOPT"] = ["-I#{File.expand_path("..", __dir__)}", ENV["RUBYOPT"]].compact.join(" ")
+        env["RSPEC_SILENCE_FILTER_ANNOUNCEMENTS"] = "1"
+
+        record_runtime_options =
+          if record_runtime
+            [
+              "--format", "ParallelTests::RSpec::RuntimeLogger",
+              "--out", "tmp/turbo_rspec_runtime.log",
+            ]
+          else
+            []
+          end
 
         command = [
           ENV["BUNDLE_BIN_PATH"], "exec", "rspec",
           *extra_args,
-          "--seed", rand(2**16).to_s,
-          "--format", "ParallelTests::RSpec::RuntimeLogger",
-          "--out", @runtime_log,
+          "--seed", rand(0xFFFF).to_s,
           "--format", "TurboTests::JsonRowsFormatter",
+          "--out", tmp_filename,
+          *record_runtime_options,
           *tests
         ]
 
@@ -118,29 +163,33 @@ module TurboTests
           STDERR.puts "Process #{process_id}: #{command_str}"
         end
 
-        _stdin, stdout, stderr, _wait_thr = Open3.popen3(env, *command)
+        stdin, stdout, stderr, wait_thr = Open3.popen3(env, *command)
+        stdin.close
 
         @threads <<
-          Thread.new {
-            require "json"
-            stdout.each_line do |line|
-              result = line.split(env["RSPEC_FORMATTER_OUTPUT_ID"])
+          Thread.new do
+            File.open(tmp_filename) do |fd|
+              fd.each_line do |line|
+                message = JSON.parse(line, symbolize_names: true)
 
-              output = result.shift
-              STDOUT.print(output) unless output.empty?
-
-              message = result.shift
-              next unless message
-
-              message = JSON.parse(message)
-              message["process_id"] = process_id
-              @messages << message
+                message[:process_id] = process_id
+                @messages << message
+              end
             end
 
-            @messages << {"type" => "exit", "process_id" => process_id}
-          }
+            @messages << {type: "exit", process_id: process_id}
+          end
 
+        @threads << start_copy_thread(stdout, STDOUT)
         @threads << start_copy_thread(stderr, STDERR)
+
+        @threads << Thread.new {
+          unless wait_thr.value.success?
+            @messages << {type: "error"}
+          end
+        }
+
+        wait_thr
       end
     end
 
@@ -149,6 +198,7 @@ module TurboTests
         loop do
           msg = src.readpartial(4096)
         rescue EOFError
+          src.close
           break
         else
           dst.write(msg)
@@ -161,40 +211,47 @@ module TurboTests
 
       loop do
         message = @messages.pop
-        case message["type"]
+        case message[:type]
         when "example_passed"
-          example = FakeExample.from_obj(message["example"])
+          example = FakeExample.from_obj(message[:example])
           @reporter.example_passed(example)
         when "group_started"
-          @reporter.group_started(message["group"].to_struct)
+          @reporter.group_started(message[:group].to_struct)
         when "group_finished"
           @reporter.group_finished
         when "example_pending"
-          example = FakeExample.from_obj(message["example"])
+          example = FakeExample.from_obj(message[:example])
           @reporter.example_pending(example)
         when "load_summary"
-          message = message["summary"]
+          message = message[:summary]
           # NOTE: notifications order and content is not guaranteed hence the fetch
           #       and count increment tracking to get the latest accumulated load time
-          @reporter.load_time = message["load_time"] if message.fetch("count", 0) > @load_count
+          @reporter.load_time = message[:load_time] if message.fetch(:count, 0) > @load_count
         when "example_failed"
-          example = FakeExample.from_obj(message["example"])
+          example = FakeExample.from_obj(message[:example])
           @reporter.example_failed(example)
           @failure_count += 1
           if fail_fast_met
             @threads.each(&:kill)
             break
           end
+        when "message"
+          @reporter.message(message[:message])
         when "seed"
         when "close"
+        when "error"
+          @reporter.error_outside_of_examples
+          @error = true
         when "exit"
           exited += 1
           if exited == @num_processes
             break
           end
         else
-          warn("Unhandled message in main process: #{message}")
+          STDERR.puts("Unhandled message in main process: #{message}")
         end
+
+        STDOUT.flush
       end
     rescue Interrupt
     end
@@ -202,8 +259,6 @@ module TurboTests
     def fail_fast_met
       !@fail_fast.nil? && @fail_fast >= @failure_count
     end
-
-    private
 
     def report_number_of_tests(groups)
       name = ParallelTests::RSpec::Runner.test_file_name

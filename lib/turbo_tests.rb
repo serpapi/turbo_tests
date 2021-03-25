@@ -23,14 +23,14 @@ module TurboTests
         klass =
           Class.new(FakeException) {
             define_singleton_method(:name) do
-              obj["class_name"]
+              obj[:class_name]
             end
           }
 
         klass.new(
-          obj["backtrace"],
-          obj["message"],
-          FakeException.from_obj(obj["cause"])
+          obj[:backtrace],
+          obj[:message],
+          FakeException.from_obj(obj[:cause])
         )
       end
     end
@@ -40,11 +40,11 @@ module TurboTests
   class FakeExecutionResult
     def self.from_obj(obj)
       new(
-        obj["example_skipped?"],
-        obj["pending_message"],
-        obj["status"].to_sym,
-        obj["pending_fixed?"],
-        FakeException.from_obj(obj["exception"])
+        obj[:example_skipped?],
+        obj[:pending_message],
+        obj[:status].to_sym,
+        obj[:pending_fixed?],
+        FakeException.from_obj(obj[:exception])
       )
     end
   end
@@ -52,24 +52,24 @@ module TurboTests
   FakeExample = Struct.new(:execution_result, :location, :description, :full_description, :metadata, :location_rerun_argument)
   class FakeExample
     def self.from_obj(obj)
-      metadata = obj["metadata"]
+      metadata = obj[:metadata]
 
-      metadata["shared_group_inclusion_backtrace"].map! do |frame|
+      metadata[:shared_group_inclusion_backtrace].map! do |frame|
         RSpec::Core::SharedExampleGroupInclusionStackFrame.new(
-          frame["shared_group_name"],
-          frame["inclusion_location"]
+          frame[:shared_group_name],
+          frame[:inclusion_location]
         )
       end
 
-      metadata[:shared_group_inclusion_backtrace] = metadata.delete("shared_group_inclusion_backtrace")
+      metadata[:shared_group_inclusion_backtrace] = metadata.delete(:shared_group_inclusion_backtrace)
 
       new(
-        FakeExecutionResult.from_obj(obj["execution_result"]),
-        obj["location"],
-        obj["description"],
-        obj["full_description"],
+        FakeExecutionResult.from_obj(obj[:execution_result]),
+        obj[:location],
+        obj[:description],
+        obj[:full_description],
         metadata,
-        obj["location_rerun_argument"]
+        obj[:location_rerun_argument]
       )
     end
 
