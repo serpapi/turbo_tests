@@ -29,7 +29,6 @@ module TurboTests
       :example_pending,
       :example_group_started,
       :example_group_finished,
-      :example_pending,
       :message,
       :seed
     )
@@ -121,7 +120,7 @@ module TurboTests
         pending_message: result.pending_message,
         status: result.status,
         pending_fixed?: result.pending_fixed?,
-        exception: exception_to_json(result.exception)
+        exception: exception_to_json(result.exception || result.pending_exception)
       }
     end
 

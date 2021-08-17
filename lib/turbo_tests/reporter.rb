@@ -11,7 +11,7 @@ module TurboTests
         name, outputs = config.values_at(:name, :outputs)
 
         outputs.map! do |filename|
-          filename == "-" ? STDOUT : File.open(filename, "w")
+          filename == "-" ? $stdout : File.open(filename, "w")
         end
 
         reporter.add(name, outputs)
