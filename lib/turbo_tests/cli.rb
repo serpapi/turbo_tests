@@ -13,6 +13,7 @@ module TurboTests
       formatters = []
       tags = []
       count = nil
+      runtime_log = nil
       verbose = false
       fail_fast = nil
 
@@ -57,6 +58,10 @@ module TurboTests
           formatters.last[:outputs] << filename
         end
 
+        opts.on("--runtime-log FILE", "Location of previously recorded test runtimes") do |filename|
+          runtime_log = filename
+        end
+
         opts.on("-v", "--verbose", "More output") do
           verbose = true
         end
@@ -90,6 +95,7 @@ module TurboTests
         formatters: formatters,
         tags: tags,
         files: @argv.empty? ? ["spec"] : @argv,
+        runtime_log: runtime_log,
         verbose: verbose,
         fail_fast: fail_fast,
         count: count,

@@ -78,6 +78,7 @@ Options:
     -f, --format FORMATTER           Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress
     -t, --tag TAG                    Run examples with the specified tag.
     -o, --out FILE                   Write output to a file instead of $stdout
+        --runtime-log FILE           Location of previously recorded test runtimes
     -v, --verbose                    More output
         --fail-fast=[N]
 ```
