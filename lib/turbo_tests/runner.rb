@@ -16,6 +16,7 @@ module TurboTests
 
       # SEE: https://bit.ly/2NP87Cz
       start_time = opts.fetch(:start_time) { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
+      runtime_log = opts.fetch(:runtime_log, nil)
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
@@ -30,6 +31,7 @@ module TurboTests
         reporter: reporter,
         files: files,
         tags: tags,
+        runtime_log: runtime_log,
         verbose: verbose,
         fail_fast: fail_fast,
         count: count
@@ -40,6 +42,7 @@ module TurboTests
       @reporter = opts[:reporter]
       @files = opts[:files]
       @tags = opts[:tags]
+      @runtime_log = opts[:runtime_log] || "tmp/turbo_rspec_runtime.log"
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
       @count = opts[:count]
@@ -63,7 +66,7 @@ module TurboTests
       group_opts = {}
 
       if use_runtime_info
-        group_opts[:runtime_log] = "tmp/turbo_rspec_runtime.log"
+        group_opts[:runtime_log] = @runtime_log
       else
         group_opts[:group_by] = :filesize
       end
@@ -138,7 +141,7 @@ module TurboTests
           if record_runtime
             [
               "--format", "ParallelTests::RSpec::RuntimeLogger",
-              "--out", "tmp/turbo_rspec_runtime.log",
+              "--out", @runtime_log,
             ]
           else
             []
