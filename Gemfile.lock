@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    turbo_tests (1.2.5)
+    turbo_tests (1.3.0)
       bundler
       parallel_tests (~> 3.3)
       rspec (~> 3.10)
@@ -12,8 +12,8 @@ GEM
     coderay (1.1.3)
     diff-lcs (1.4.4)
     method_source (1.0.0)
-    parallel (1.20.1)
-    parallel_tests (3.7.0)
+    parallel (1.21.0)
+    parallel_tests (3.7.3)
       parallel
     pry (0.14.1)
       coderay (~> 1.1)
@@ -42,4 +42,4 @@ DEPENDENCIES
   turbo_tests!
 
 BUNDLED WITH
-   2.1.4
+   2.2.27
