@@ -21,7 +21,9 @@ module TurboTests
         opts.banner = <<~BANNER
           Run all tests in parallel, giving each process ENV['TEST_ENV_NUMBER'] ('1', '2', '3', ...).
 
-          Uses parallel_tests under the hood, but reports test results incrementally. Based on Discourse and RubyGems work in this area.
+          Reports test results incrementally. Uses methods from `parallel_tests` gem to split files to groups.
+
+          Source code of `turbo_tests` gem is based on Discourse and RubyGems work in this area (see README file of the source repository).
 
           Usage: turbo_tests [options]
 

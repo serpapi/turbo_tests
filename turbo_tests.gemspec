@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["Ilya Zub"]
   spec.email = ["zaoooza92@gmail.com"]
 
-  spec.summary = "Runner for grosser/parallel_tests with incremental summarized output. Based on Discourse and Rubygems work in this area."
+  spec.summary = "`turbo_tests` is a drop-in replacement for `grosser/parallel_tests` with incremental summarized output. Source code of `turbo_test` gem is based on Discourse and Rubygems work in this area (see README file of the source repository)."
   spec.homepage = "https://github.com/serpapi/turbo_tests"
   spec.license = "MIT"
 
