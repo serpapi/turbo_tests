@@ -29,7 +29,7 @@ An error occurred while loading #{fixture}.
     end
   end
 
-  context "pending exceptions", :aggregate_failures do
+  fcontext "pending exceptions", :aggregate_failures do
     let(:fixture) { "./fixtures/rspec/pending_exceptions_spec.rb" }
 
     it "reports" do
