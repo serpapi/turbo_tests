@@ -46,6 +46,10 @@ module TurboTests
           }
         end
 
+        opts.on("-o", "--test-options '[OPTIONS]'", "execute test commands with those options") do |arg| 
+          test_options << arg.strip
+        end
+
         opts.on("-t", "--tag TAG", "Run examples with the specified tag.") do |tag|
           tags << tag
         end

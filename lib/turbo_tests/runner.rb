@@ -111,9 +111,11 @@ module TurboTests
     end
 
     def start_regular_subprocess(tests, process_id, **opts)
+      extra_args = @tags.map { |tag| "--tag=#{tag}" }
+      extra_args << 
       start_subprocess(
         {"TEST_ENV_NUMBER" => process_id.to_s},
-        @tags.map { |tag| "--tag=#{tag}" },
+        extra_args,
         tests,
         process_id,
         **opts
