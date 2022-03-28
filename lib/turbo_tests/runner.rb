@@ -20,6 +20,7 @@ module TurboTests
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
+      test_options = opts.fetch(:test_options, nil)
 
       if verbose
         STDERR.puts "VERBOSE"
@@ -34,7 +35,8 @@ module TurboTests
         runtime_log: runtime_log,
         verbose: verbose,
         fail_fast: fail_fast,
-        count: count
+        count: count,
+        test_options: test_options
       ).run
     end
 
@@ -46,9 +48,11 @@ module TurboTests
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
       @count = opts[:count]
+      @test_options = opts[:test_options]
       @load_time = 0
       @load_count = 0
       @failure_count = 0
+      STDERR.puts opts
 
       @messages = Queue.new
       @threads = []
@@ -96,7 +100,12 @@ module TurboTests
 
       @threads.each(&:join)
 
-      @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
+      threads = wait_threads.map(&:value)
+      no_failures = @reporter.failed_examples.empty?
+      failure = threads.detect { |t| !t.success? }
+      STDERR.puts failure
+      return failure if failure
+      true
     end
 
     private
@@ -112,6 +121,10 @@ module TurboTests
 
     def start_regular_subprocess(tests, process_id, **opts)
       extra_args = @tags.map { |tag| "--tag=#{tag}" }
+      if @test_options
+        extra_args << @test_options.map { |k,v| extra_args << "-#{k}=#{v}"}
+      end
+      STDOUT.puts extra_args
       start_subprocess(
         {"TEST_ENV_NUMBER" => process_id.to_s},
         extra_args,
@@ -122,6 +135,8 @@ module TurboTests
     end
 
     def start_subprocess(env, extra_args, tests, process_id, record_runtime:)
+      STDERR.puts 'hiiii'
+      STDERR.puts "more args #{extra_args}"
       if tests.empty?
         @messages << {
           type: "exit",

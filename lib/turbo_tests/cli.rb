@@ -16,6 +16,7 @@ module TurboTests
       runtime_log = nil
       verbose = false
       fail_fast = nil
+      test_options = []
 
       OptionParser.new { |opts|
         opts.banner = <<~BANNER
@@ -105,11 +106,15 @@ module TurboTests
         verbose: verbose,
         fail_fast: fail_fast,
         count: count,
+        test_options: test_options
       )
 
       if success
+        STDERR.puts 'success'
         exit 0
       else
+        STDERR.
+        STDERR.puts 'not success'
         exit 1
       end
     end
