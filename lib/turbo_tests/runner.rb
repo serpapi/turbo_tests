@@ -125,10 +125,11 @@ module TurboTests
         extra_args << " "
       end
       if @tags.any?
-        extra_args << @tags.map { |tag| "--tag=#{tag}" }
+        extra_args << @tags.map { |tag| "--tag=#{tag}" }&.join(" ")
       end
       start_subprocess(
         {"TEST_ENV_NUMBER" => process_id.to_s},
+        # @tags.map { |tag| "--tag=#{tag}" },
         extra_args,
         tests,
         process_id,

@@ -1,6 +1,6 @@
 RSpec.describe TurboTests::CLI do
   context "some default that doesnt apply all the time" do
-    subject(:output) { `bundle exec turbo_tests -f d #{fixture}`.strip }
+    subject(:output) { `bundle exec turbo_tests -f d #{fixture} 2>&1`.strip }
 
     before { output }
 
