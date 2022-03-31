@@ -100,11 +100,7 @@ module TurboTests
 
       @threads.each(&:join)
 
-      threads = wait_threads.map(&:value)
-      no_failures = @reporter.failed_examples.empty?
-      failure = threads.detect { |t| !t.success? }
-      return failure if failure
-      true
+      @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
     end
 
     private
