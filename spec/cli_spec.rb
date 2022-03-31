@@ -75,18 +75,19 @@ RSpec.describe TurboTests::CLI do
   context "with extra test_options" do
     it "can pass thru failure-exit-code to rspec" do
       fixture = "./fixtures/rspec/passing_spec.rb"
-      extra = "--test-options='--failure-exit-code 2'"
+      extra = "'--failure-exit-code 2'"
       result = `bundle exec turbo_tests --test-options #{extra} -f d #{fixture}`.strip
       p result
     end
 
-    fit "can pass thru custom exit code" do
+    it "can pass thru custom exit code" do
       fixture = "./fixtures/rspec/failing_spec.rb"
-      extra = "'--failure-exit-code 99'"
-      result = `bin/turbo_tests --test-options #{extra} -f d #{fixture}`.strip
+      extra = "'--failure-exit-code=99'"
+      cmd = "bundle exec turbo_tests --test-options #{extra} -f d #{fixture}".strip
+      puts cmd
+      output = `#{cmd}`.strip
       expect($?.success?).to be false
       expect($?.exitstatus).to eq(99)
-      p result
     end
   end
 end

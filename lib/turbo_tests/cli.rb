@@ -48,7 +48,7 @@ module TurboTests
         end
 
         opts.on("-o", "--test-options '[OPTIONS]'", "execute test commands with those options") do |arg| 
-          test_options << arg.strip
+          test_options << arg.lstrip
         end
 
         opts.on("-t", "--tag TAG", "Run examples with the specified tag.") do |tag|
@@ -110,11 +110,8 @@ module TurboTests
       )
 
       if success
-        STDERR.puts 'success'
         exit 0
       else
-        STDERR.
-        STDERR.puts 'not success'
         exit 1
       end
     end

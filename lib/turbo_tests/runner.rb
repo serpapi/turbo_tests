@@ -52,7 +52,6 @@ module TurboTests
       @load_time = 0
       @load_count = 0
       @failure_count = 0
-      STDERR.puts opts
 
       @messages = Queue.new
       @threads = []
@@ -85,7 +84,8 @@ module TurboTests
       setup_tmp_dir
 
       subprocess_opts = {
-        record_runtime: use_runtime_info
+        record_runtime: use_runtime_info,
+        test_options: @test_options
       }
 
       report_number_of_tests(tests_in_groups)
@@ -103,7 +103,6 @@ module TurboTests
       threads = wait_threads.map(&:value)
       no_failures = @reporter.failed_examples.empty?
       failure = threads.detect { |t| !t.success? }
-      STDERR.puts failure
       return failure if failure
       true
     end
@@ -120,11 +119,14 @@ module TurboTests
     end
 
     def start_regular_subprocess(tests, process_id, **opts)
-      extra_args = @tags.map { |tag| "--tag=#{tag}" }
-      if @test_options
-        extra_args << @test_options.map { |k,v| extra_args << "-#{k}=#{v}"}
+      extra_args = nil
+      if test_options = opts.delete(:test_options)
+        extra_args = @test_options
+        extra_args << " "
       end
-      STDOUT.puts extra_args
+      if @tags.any?
+        extra_args << @tags.map { |tag| "--tag=#{tag}" }
+      end
       start_subprocess(
         {"TEST_ENV_NUMBER" => process_id.to_s},
         extra_args,
@@ -135,8 +137,6 @@ module TurboTests
     end
 
     def start_subprocess(env, extra_args, tests, process_id, record_runtime:)
-      STDERR.puts 'hiiii'
-      STDERR.puts "more args #{extra_args}"
       if tests.empty?
         @messages << {
           type: "exit",
