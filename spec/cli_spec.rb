@@ -33,6 +33,15 @@ RSpec.describe TurboTests::CLI do
       result = `bundle exec turbo_tests -t unknown-tag -f d #{fixture}`.strip
       expect(result).to include("All examples were filtered out")
       expect(result).to end_with("0 examples, 0 failures")
+      expect($?.success?).to be true
+    end
+
+    it "works with tags and a custom failure exit code" do
+      extra = "'--failure-exit-code=2'"
+      result = `bundle exec turbo_tests -t unknown-tag --test-options #{extra} -f d #{fixture}`.strip
+      expect(result).to include("All examples were filtered out")
+      expect(result).to end_with("0 examples, 0 failures")
+      expect($?.success?).to be true
     end
 
     it "aborts with a custom failure exit code" do
