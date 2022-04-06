@@ -97,23 +97,23 @@ An error occurred while loading #{fixture}.
 
         %{
 Fixture of spec file with pending failed examples is implemented but skipped with 'pending'
-    # TODO: skipped with 'pending'
-    Failure/Error: DEFAULT_FAILURE_NOTIFIER = lambda { |failure, _opts| raise failure }
+     # TODO: skipped with 'pending'
+     Failure/Error: DEFAULT_FAILURE_NOTIFIER = lambda { |failure, _opts| raise failure }
 
-      expected: 3
+       expected: 3
             got: 2
 
-      (compared using ==)
+       (compared using ==)
         }.strip,
 
         %(
 Fixture of spec file with pending failed examples is implemented but skipped with 'skip'
-    # TODO: skipped with 'skip'
+     # TODO: skipped with 'skip'
         ).strip,
 
         %(
 Fixture of spec file with pending failed examples is implemented but skipped with 'xit'
-    # Temporarily skipped with xit
+     # Temporarily skipped with xit
         ).strip
       ].each do |part|
         expect(output).to include(part)
