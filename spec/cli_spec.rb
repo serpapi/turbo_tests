@@ -5,14 +5,14 @@ RSpec.describe TurboTests::CLI do
     let(:fixture) { "./fixtures/rspec/passing_spec.rb" }
 
     it "works with tags" do
-      result = `bundle exec turbo_tests -v -t unknown-tag -f d #{fixture}`.strip
+      result = `bundle exec turbo_tests -t unknown-tag -f d #{fixture}`.strip
       expect(result).to include("All examples were filtered out")
       expect(result).to end_with("0 examples, 0 failures")
       expect($?.success?).to be true
     end
 
     it "returns success" do
-      result = `bundle exec turbo_tests -v -f d #{fixture}`.strip
+      result = `bundle exec turbo_tests -f d #{fixture}`.strip
       expect(result).to end_with("1 example, 0 failures")
       expect($?.success?).to be true
     end
@@ -30,7 +30,7 @@ RSpec.describe TurboTests::CLI do
     let(:fixture) { "./fixtures/rspec/failing_spec.rb" }
 
     it "works with tags" do
-      result = `bundle exec turbo_tests -v -t unknown-tag -f d #{fixture}`.strip
+      result = `bundle exec turbo_tests -t unknown-tag -f d #{fixture}`.strip
       expect(result).to include("All examples were filtered out")
       expect(result).to end_with("0 examples, 0 failures")
     end

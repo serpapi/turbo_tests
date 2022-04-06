@@ -8,6 +8,7 @@ require_relative "../utils/hash_extension"
 module TurboTests
   class Runner
     using CoreExtensions
+    SUCCESS_EXIT_CODE = 0
 
     def self.run(opts = {})
       files = opts[:files]
@@ -101,7 +102,7 @@ module TurboTests
       @threads.each(&:join)
 
       if @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
-        return 0
+        SUCCESS_EXIT_CODE
       else
         wait_threads.max { |value| value.exitstatus }.value.exitstatus
       end
