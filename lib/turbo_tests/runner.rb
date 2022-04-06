@@ -100,7 +100,11 @@ module TurboTests
 
       @threads.each(&:join)
 
-      @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
+      if @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
+        return 0
+      else
+        wait_threads.max { |value| value.exitstatus }.value.exitstatus
+      end
     end
 
     private
@@ -114,18 +118,19 @@ module TurboTests
       FileUtils.mkdir_p("tmp/test-pipes/")
     end
 
-    def start_regular_subprocess(tests, process_id, **opts)
-      extra_args = nil
-      if test_options = opts.delete(:test_options)
-        extra_args = @test_options
-        extra_args << " "
-      end
+    def combine_test_options_and_tags(test_options)
+      extra_args = []
+      extra_args.concat(test_options) if test_options
       if @tags.any?
-        extra_args << @tags.map { |tag| "--tag=#{tag}" }&.join(" ")
+        extra_args.concat @tags.map { |tag| "--tag=#{tag}" }
       end
+      extra_args
+    end
+
+    def start_regular_subprocess(tests, process_id, **opts)
+      extra_args = combine_test_options_and_tags(opts.delete(:test_options))
       start_subprocess(
         {"TEST_ENV_NUMBER" => process_id.to_s},
-        # @tags.map { |tag| "--tag=#{tag}" },
         extra_args,
         tests,
         process_id,

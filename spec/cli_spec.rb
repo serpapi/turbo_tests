@@ -1,9 +1,53 @@
 RSpec.describe TurboTests::CLI do
-  subject(:output) { `bundle exec turbo_tests -f d #{fixture} 2>&1`.strip }
+  let(:bin) { Pathname(__dir__).join("../bin/turbo_tests").expand_path }
 
-  before { output }
+  context "passing spec" do
+    let(:fixture) { "./fixtures/rspec/passing_spec.rb" }
+
+    it "works with tags" do
+      result = `bundle exec turbo_tests -v -t unknown-tag -f d #{fixture}`.strip
+      expect(result).to include("All examples were filtered out")
+      expect(result).to end_with("0 examples, 0 failures")
+      expect($?.success?).to be true
+    end
+
+    it "returns success" do
+      result = `bundle exec turbo_tests -v -f d #{fixture}`.strip
+      expect(result).to end_with("1 example, 0 failures")
+      expect($?.success?).to be true
+    end
+
+    it "works with extra test_options" do
+      extra = "'--failure-exit-code=2'"
+      result = `bundle exec turbo_tests --test-options #{extra} -f d #{fixture}`.strip
+      expect($?.success?).to be true
+      expect(result).to end_with("1 example, 0 failures")
+    end
+
+  end
+
+  context "failing spec" do
+    let(:fixture) { "./fixtures/rspec/failing_spec.rb" }
+
+    it "works with tags" do
+      result = `bundle exec turbo_tests -v -t unknown-tag -f d #{fixture}`.strip
+      expect(result).to include("All examples were filtered out")
+      expect(result).to end_with("0 examples, 0 failures")
+    end
+
+    it "aborts with a custom failure exit code" do
+      extra = "'--failure-exit-code=2'"
+      result = `bundle exec turbo_tests --test-options #{extra} -f d #{fixture}`.strip
+      expect(result).to include("1 example, 1 failure")
+      expect($?.success?).to be false
+      expect($?.exitstatus).to eq(2)
+    end
+  end
+
 
   context "errors outside of examples" do
+    let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
+
     let(:expected_start_of_output) {
       %(
 1 processes for 1 specs, ~ 1 specs per process
@@ -19,9 +63,8 @@ An error occurred while loading #{fixture}.
 ).strip
     }
 
-    let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
-
     it "reports" do
+      output = `bundle exec turbo_tests -f d #{fixture} 2>&1`.strip
       expect($?.exitstatus).to eql(1)
 
       expect(output).to start_with(expected_start_of_output)
@@ -33,6 +76,7 @@ An error occurred while loading #{fixture}.
     let(:fixture) { "./fixtures/rspec/pending_exceptions_spec.rb" }
 
     it "reports" do
+      output = `bundle exec turbo_tests -f d #{fixture} 2>&1`.strip
       expect($?.exitstatus).to eql(0)
 
       [
@@ -68,22 +112,5 @@ Fixture of spec file with pending failed examples is implemented but skipped wit
 
       expect(output).to end_with("3 examples, 0 failures, 3 pending")
     end
-  end
-
-  it "can pass thru failure-exit-code to rspec" do
-    fixture = "./fixtures/rspec/passing_spec.rb"
-    extra = "'--failure-exit-code 2'"
-    result = `bundle exec turbo_tests --test-options #{extra} -f d #{fixture}`.strip
-    p result
-  end
-
-  it "can pass thru custom exit code" do
-    fixture = "./fixtures/rspec/failing_spec.rb"
-    extra = "'--failure-exit-code=99'"
-    cmd = "bundle exec turbo_tests --test-options #{extra} -f d #{fixture}".strip
-    puts cmd
-    output = `#{cmd}`.strip
-    expect($?.success?).to be false
-    expect($?.exitstatus).to eq(99)
   end
 end
