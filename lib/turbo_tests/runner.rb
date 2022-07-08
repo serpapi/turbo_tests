@@ -2,12 +2,20 @@
 
 require "json"
 require "parallel_tests/rspec/runner"
+require "parallel_tests/tasks"
 
 require_relative "../utils/hash_extension"
 
 module TurboTests
   class Runner
     using CoreExtensions
+
+    def self.create(count)
+      ENV["PARALLEL_TEST_FIRST_IS_1"] = "true"
+      command = ["bundle", "exec", "rake", "db:create", "RAILS_ENV=#{ParallelTests::Tasks.rails_env}"]
+      args = { count: count.to_s }
+      ParallelTests::Tasks.run_in_parallel(command, args)
+    end
 
     def self.run(opts = {})
       files = opts[:files]

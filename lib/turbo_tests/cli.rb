@@ -16,6 +16,7 @@ module TurboTests
       runtime_log = nil
       verbose = false
       fail_fast = nil
+      create = false
 
       OptionParser.new { |opts|
         opts.banner = <<~BANNER
@@ -76,7 +77,15 @@ module TurboTests
           end
           fail_fast = n.nil? || n < 1 ? 1 : n
         end
+
+        opts.on("--create", "Create databases") do
+          create = true
+        end
       }.parse!(@argv)
+
+      if create
+        return TurboTests::Runner.create(count)
+      end
 
       requires.each { |f| require(f) }
 

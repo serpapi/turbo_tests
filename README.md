@@ -59,6 +59,14 @@ Or install it yourself as:
 $ gem install turbo_tests
 ```
 
+## Setup
+
+Create test databases
+
+```bash
+$ bundle exec turbo_tests --create
+```
+
 ## Usage
 
 Execute tests:
@@ -85,6 +93,7 @@ Options:
         --runtime-log FILE           Location of previously recorded test runtimes
     -v, --verbose                    More output
         --fail-fast=[N]
+        --create                     Create test databases
 ```
 
 ## Development
