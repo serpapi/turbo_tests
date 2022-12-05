@@ -104,7 +104,7 @@ module TurboTests
       if @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
         SUCCESS_EXIT_CODE
       else
-        wait_threads.max { |value| value.exitstatus }.value.exitstatus
+        wait_threads.max { |thread| thread.wait.exitstatus }.value.exitstatus
       end
     end
 
