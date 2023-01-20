@@ -141,9 +141,10 @@ module TurboTests
           shared_group_inclusion_backtrace:
             example
               .metadata[:shared_group_inclusion_backtrace]
-              .map { |frame| stack_frame_to_json(frame) }
+              .map { |frame| stack_frame_to_json(frame) },
+          extra_failure_lines: example.metadata[:extra_failure_lines],
         },
-        location_rerun_argument: example.location_rerun_argument
+        location_rerun_argument: example.location_rerun_argument,
       }
     end
 
