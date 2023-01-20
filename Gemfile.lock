@@ -1,8 +1,8 @@
 PATH
   remote: .
   specs:
-    turbo_tests (1.3.0)
-      bundler
+    turbo_tests (1.4.0)
+      bundler (>= 2.1)
       parallel_tests (~> 3.3)
       rspec (~> 3.10)
 

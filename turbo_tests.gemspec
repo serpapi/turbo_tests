@@ -3,25 +3,28 @@ require_relative "lib/turbo_tests/version"
 Gem::Specification.new do |spec|
   spec.name = "turbo_tests"
   spec.version = TurboTests::VERSION
-  spec.authors = ["Ilya Zub"]
-  spec.email = ["zaoooza92@gmail.com"]
+  spec.platform = Gem::Platform::RUBY
+  spec.date = Time.now.strftime('%Y-%m-%d')
 
   spec.summary = "`turbo_tests` is a drop-in replacement for `grosser/parallel_tests` with incremental summarized output. Source code of `turbo_test` gem is based on Discourse and Rubygems work in this area (see README file of the source repository)."
   spec.homepage = "https://github.com/serpapi/turbo_tests"
   spec.license = "MIT"
 
+  spec.authors = ["Illia Zub"]
+  spec.email = ["ilya@serpapi.com"]
+
   spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/serpapi/turbo_tests"
   spec.metadata["changelog_uri"] = "https://github.com/serpapi/turbo_tests/releases"
 
-  spec.required_ruby_version = ">= 2.4"
+  spec.required_ruby_version = ">= 2.6"
 
   spec.add_dependency "rspec", "~> 3.10"
   spec.add_dependency "parallel_tests", "~> 3.3"
 
   spec.add_development_dependency "pry", "~> 0.14"
 
-  spec.add_runtime_dependency "bundler"
+  spec.add_runtime_dependency "bundler", ">= 2.1"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
