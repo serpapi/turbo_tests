@@ -50,7 +50,7 @@ module TurboTests
       @load_count = 0
       @failure_count = 0
 
-      @messages = Queue.new
+      @messages = Thread::Queue.new
       @threads = []
       @error = false
     end
