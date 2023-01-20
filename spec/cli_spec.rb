@@ -69,4 +69,14 @@ Fixture of spec file with pending failed examples is implemented but skipped wit
       expect(output).to end_with("3 examples, 0 failures, 3 pending")
     end
   end
+
+  describe "extra_failure_lines" do
+    let(:fixture) { "./fixtures/rspec/failing_spec.rb" }
+
+    it "outputs extra_failure_lines" do
+      expect($?.exitstatus).to eql(1)
+
+      expect(output).to include("Test info in extra_failure_lines")
+    end
+  end
 end
