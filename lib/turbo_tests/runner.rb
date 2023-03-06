@@ -57,27 +57,25 @@ module TurboTests
     end
 
     def run
-      @num_processes = [
-        ParallelTests.determine_number_of_processes(@count),
-        ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size
-      ].min
-
+      number_of_groups = ParallelTests.determine_number_of_processes(@count)
       use_runtime_info = @files == ['spec']
 
       group_opts = {}
-
       if use_runtime_info
         group_opts[:runtime_log] = @runtime_log
       else
         group_opts[:group_by] = :filesize
       end
+      group_opts[:exclude_pattern] = /#{@exclude_pattern}/ if @exclude_pattern
 
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
           @files,
-          @num_processes,
+          number_of_groups,
           **group_opts
-        )
+        ).select(&:any?)
+
+      @num_processes = tests_in_groups.size
 
       setup_tmp_dir
 
