@@ -10,6 +10,9 @@ on:
 
 jobs:
   release:
+    env:
+      GEM_NAME: turbo_tests
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     name: Tag and Release
     runs-on: ubuntu-latest
     permissions:
