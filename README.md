@@ -1,6 +1,12 @@
 ![Tests](https://github.com/serpapi/turbo_tests/workflows/Tests/badge.svg)
 
-# TurboTests
+<h1 align="center">
+  TurboTests
+</h1>
+
+<div align="center">
+   <img src="https://user-images.githubusercontent.com/78694043/233910064-87a6d557-1120-42d2-b965-2a9403c6f2f4.svg" width="500" alt="Turbo-Tests">
+</div>
 
 `turbo_tests` is a drop-in replacement for [`grosser/parallel_tests`](https://github.com/grosser/parallel_tests) with incremental summarized output. Source code of this gem is based on [Discourse](https://github.com/discourse/discourse/blob/6b9784cf8a18636bce281a7e4d18e65a0cbc6290/lib/turbo_tests.rb) and [RubyGems](https://github.com/rubygems/rubygems/tree/390335ceb351668cd433bd5bb9823dd021f82533/bundler/tool) work in this area.
 
