@@ -9,7 +9,7 @@
 
 <div align="center">
 
-  <a href="">![Tests](https://github.com/serpapi/turbo_tests/workflows/Tests/badge.svg)</a>
+  ![Tests](https://github.com/serpapi/turbo_tests/workflows/Tests/badge.svg)
 
 </div>
 
