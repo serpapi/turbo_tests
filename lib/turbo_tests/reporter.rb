@@ -114,6 +114,11 @@ module TurboTests
         RSpec::Core::Notifications::NullNotification)
     end
 
+    def seed_notification(seed, seed_used)
+      puts RSpec::Core::Notifications::SeedNotification.new(seed, seed_used).fully_formatted
+      puts
+    end
+
     protected
 
     def delegate_to_formatters(method, *args)
