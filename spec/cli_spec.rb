@@ -1,5 +1,5 @@
 RSpec.describe TurboTests::CLI do
-  subject(:output) { `bundle exec turbo_tests -f d #{fixture}`.strip }
+  subject(:output) { `bundle exec turbo_tests -f d #{fixture} --seed 1234`.strip }
 
   before { output }
 
@@ -7,6 +7,9 @@ RSpec.describe TurboTests::CLI do
     let(:expected_start_of_output) {
       %(
 1 processes for 1 specs, ~ 1 specs per process
+
+Randomized with seed 1234
+
 
 An error occurred while loading #{fixture}.
 \e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m
@@ -18,6 +21,11 @@ An error occurred while loading #{fixture}.
 \e[36m# #{fixture}:1:in `<top (required)>'\e[0m
 ).strip
     }
+    let(:expected_end_of_output) do
+      "0 examples, 0 failures\n"\
+        "\n\n"\
+        "Randomized with seed 1234"
+    end
 
     let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
 
@@ -25,7 +33,7 @@ An error occurred while loading #{fixture}.
       expect($?.exitstatus).to eql(1)
 
       expect(output).to start_with(expected_start_of_output)
-      expect(output).to end_with("0 examples, 0 failures")
+      expect(output).to end_with(expected_end_of_output)
     end
   end
 
@@ -66,7 +74,7 @@ Fixture of spec file with pending failed examples is implemented but skipped wit
         expect(output).to include(part)
       end
 
-      expect(output).to end_with("3 examples, 0 failures, 3 pending")
+      expect(output).to end_with("3 examples, 0 failures, 3 pending\n\n\nRandomized with seed 1234")
     end
   end
 
