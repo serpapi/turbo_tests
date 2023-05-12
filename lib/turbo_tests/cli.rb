@@ -78,7 +78,7 @@ module TurboTests
           fail_fast = n.nil? || n < 1 ? 1 : n
         end
 
-        opts.on("--seed SEED", ) do |s|
+        opts.on("--seed SEED", "Seed for rspec") do |s|
           seed = s
         end
       }.parse!(@argv)

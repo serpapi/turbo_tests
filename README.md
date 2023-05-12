@@ -4,7 +4,7 @@
 
 <div align="center">
    <img src="https://user-images.githubusercontent.com/78694043/233910064-87a6d557-1120-42d2-b965-2a9403c6f2f4.svg" width="500" alt="Turbo-Tests">
-  
+
 </div>
 
 <div align="center">
@@ -96,6 +96,7 @@ Options:
         --runtime-log FILE           Location of previously recorded test runtimes
     -v, --verbose                    More output
         --fail-fast=[N]
+        --seed SEED                  Seed for rspec
 ```
 
 ## Development
