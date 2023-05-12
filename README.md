@@ -106,6 +106,7 @@ Options:
         --fail-fast=[N]
         --seed SEED                  Seed for rspec
         --create                     Create test databases
+        --print_failed_group         Prints group that had failures in it
 ```
 
 ## Development

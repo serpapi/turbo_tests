@@ -92,7 +92,7 @@ module TurboTests
           create = true
         end
 
-        opts.on("--print_failed_group") do
+        opts.on("--print_failed_group", "Prints group that had failures in it") do
           print_failed_group = true
         end
       end.parse!(@argv)
