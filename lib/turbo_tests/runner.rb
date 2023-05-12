@@ -22,6 +22,7 @@ module TurboTests
       count = opts.fetch(:count, nil)
       seed = opts.fetch(:seed, nil) || rand(0xFFFF).to_s
       seed_used = !opts[:seed].nil?
+      print_failed_group = opts.fetch(:print_failed_group, false)
 
       if verbose
         STDERR.puts "VERBOSE"
@@ -38,7 +39,8 @@ module TurboTests
         fail_fast: fail_fast,
         count: count,
         seed: seed,
-        seed_used: seed_used
+        seed_used: seed_used,
+        print_failed_group: print_failed_group
       ).run
     end
 
@@ -55,10 +57,10 @@ module TurboTests
       @failure_count = 0
       @seed = opts[:seed]
       @seed_used = opts[:seed_used]
-
       @messages = Thread::Queue.new
       @threads = []
       @error = false
+      @print_failed_group = opts[:print_failed_group]
     end
 
     def run
@@ -105,6 +107,8 @@ module TurboTests
       @reporter.seed_notification(@seed, @seed_used)
 
       @threads.each(&:join)
+
+      report_failed_group(wait_threads, tests_in_groups) if @print_failed_group
 
       @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
     end
@@ -281,6 +285,15 @@ module TurboTests
       tests_per_process = (num_processes == 0 ? 0 : num_tests.to_f / num_processes).round
 
       puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
+    end
+
+    def report_failed_group(wait_threads, tests_in_groups)
+      wait_threads.map(&:value).each_with_index do |value, index|
+        next if value.success?
+
+        failing_group = tests_in_groups[index].join(" ")
+        puts "Group that failed: #{failing_group}"
+      end
     end
   end
 end

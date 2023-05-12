@@ -17,6 +17,7 @@ module TurboTests
       verbose = false
       fail_fast = nil
       seed = nil
+      print_failed_group = false
 
       OptionParser.new { |opts|
         opts.banner = <<~BANNER
@@ -81,6 +82,10 @@ module TurboTests
         opts.on("--seed SEED", "Seed for rspec") do |s|
           seed = s
         end
+
+        opts.on("--print_failed_group") do
+          print_failed_group = true
+        end
       }.parse!(@argv)
 
       requires.each { |f| require(f) }
@@ -106,7 +111,8 @@ module TurboTests
         verbose: verbose,
         fail_fast: fail_fast,
         count: count,
-        seed: seed
+        seed: seed,
+        print_failed_group: print_failed_group
       )
 
       if success
