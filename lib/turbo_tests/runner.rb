@@ -20,6 +20,8 @@ module TurboTests
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
+      seed = opts.fetch(:seed, nil) || rand(0xFFFF).to_s
+      seed_used = !opts[:seed].nil?
 
       if verbose
         STDERR.puts "VERBOSE"
@@ -34,7 +36,9 @@ module TurboTests
         runtime_log: runtime_log,
         verbose: verbose,
         fail_fast: fail_fast,
-        count: count
+        count: count,
+        seed: seed,
+        seed_used: seed_used
       ).run
     end
 
@@ -49,6 +53,8 @@ module TurboTests
       @load_time = 0
       @load_count = 0
       @failure_count = 0
+      @seed = opts[:seed]
+      @seed_used = opts[:seed_used]
 
       @messages = Thread::Queue.new
       @threads = []
@@ -86,6 +92,8 @@ module TurboTests
 
       report_number_of_tests(tests_in_groups)
 
+      @reporter.seed_notification(@seed, @seed_used)
+
       wait_threads = tests_in_groups.map.with_index do |tests, process_id|
         start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
       end
@@ -93,6 +101,8 @@ module TurboTests
       handle_messages
 
       @reporter.finish
+
+      @reporter.seed_notification(@seed, @seed_used)
 
       @threads.each(&:join)
 
@@ -150,7 +160,7 @@ module TurboTests
         command = [
           ENV["BUNDLE_BIN_PATH"], "exec", "rspec",
           *extra_args,
-          "--seed", rand(0xFFFF).to_s,
+          "--seed", @seed,
           "--format", "TurboTests::JsonRowsFormatter",
           "--out", tmp_filename,
           *record_runtime_options,
