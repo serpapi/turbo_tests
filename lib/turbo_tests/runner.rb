@@ -148,7 +148,7 @@ module TurboTests
           end
 
         command = [
-          ENV["BUNDLE_BIN_PATH"], "exec", "rspec",
+          "rspec",
           *extra_args,
           "--seed", rand(0xFFFF).to_s,
           "--format", "TurboTests::JsonRowsFormatter",
@@ -156,6 +156,7 @@ module TurboTests
           *record_runtime_options,
           *tests
         ]
+        command.unshift(ENV["BUNDLE_BIN_PATH"], "exec") if ENV["BUNDLE_BIN_PATH"]
 
         if @verbose
           command_str = [
