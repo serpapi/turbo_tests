@@ -20,7 +20,7 @@ module TurboTests
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
-      seed = opts.fetch(:seed, nil) || rand(0xFFFF).to_s
+      seed = opts.fetch(:seed, rand(0xFFFF).to_s)
       seed_used = !opts[:seed].nil?
 
       if verbose
