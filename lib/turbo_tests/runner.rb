@@ -131,7 +131,7 @@ module TurboTests
 
         begin
           File.mkfifo(tmp_filename)
-        rescue Errno::EEXIST
+        rescue Errno::EEXIST, NotImplementedError
         end
 
         env["RUBYOPT"] = ["-I#{File.expand_path("..", __dir__)}", ENV["RUBYOPT"]].compact.join(" ")
