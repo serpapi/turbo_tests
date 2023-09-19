@@ -21,6 +21,7 @@ module TurboTests
       files = opts[:files]
       formatters = opts[:formatters]
       tags = opts[:tags]
+      parallel_options = opts[:parallel_options] || {}
 
       start_time = opts.fetch(:start_time) { RSpec::Core::Time.now }
       runtime_log = opts.fetch(:runtime_log, nil)
@@ -29,6 +30,14 @@ module TurboTests
       count = opts.fetch(:count, nil)
       seed = opts.fetch(:seed)
       seed_used = !seed.nil?
+
+      use_runtime_info = files == ["spec"]
+
+      if use_runtime_info
+        parallel_options[:runtime_log] = runtime_log
+      else
+        parallel_options[:group_by] = :filesize
+      end
 
       warn("VERBOSE") if verbose
 
@@ -44,6 +53,8 @@ module TurboTests
         count: count,
         seed: seed,
         seed_used: seed_used,
+        use_runtime_info: use_runtime_info,
+        parallel_options: parallel_options
       ).run
     end
 
@@ -51,16 +62,23 @@ module TurboTests
       @reporter = opts[:reporter]
       @files = opts[:files]
       @tags = opts[:tags]
-      @runtime_log = opts[:runtime_log] || "tmp/turbo_rspec_runtime.log"
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
       @count = opts[:count]
       @seed = opts[:seed]
       @seed_used = opts[:seed_used]
+      @use_runtime_info = opts[:use_runtime_info]
 
       @load_time = 0
       @load_count = 0
       @failure_count = 0
+
+      # Supports runtime_log as a top level option,
+      #   but also nested inside parallel_options
+      @runtime_log = opts[:runtime_log] || "tmp/turbo_rspec_runtime.log"
+      @parallel_options = opts.fetch(:parallel_options, {})
+      @parallel_options[:runtime_log] ||= @runtime_log
+      @record_runtime = @parallel_options[:group_by] == :runtime
 
       @messages = Thread::Queue.new
       @threads = []
@@ -73,27 +91,17 @@ module TurboTests
         ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size,
       ].min
 
-      use_runtime_info = @files == ["spec"]
-
-      group_opts = {}
-
-      if use_runtime_info
-        group_opts[:runtime_log] = @runtime_log
-      else
-        group_opts[:group_by] = :filesize
-      end
-
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
           @files,
           @num_processes,
-          **group_opts,
+          **@parallel_options
         )
 
       setup_tmp_dir
 
       subprocess_opts = {
-        record_runtime: use_runtime_info,
+        record_runtime: @record_runtime
       }
 
       @reporter.report(tests_in_groups) do |_reporter|
