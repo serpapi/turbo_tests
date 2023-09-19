@@ -109,6 +109,12 @@ Options:
         --print_failed_group         Prints group that had failures in it
 ```
 
+To pass any options supported by paralell_tests, use `--` :
+
+```bash
+bundle exec turbo_tests -n 4 -- --only-group 1 --pattern spec/system
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
