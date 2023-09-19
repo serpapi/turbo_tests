@@ -112,6 +112,7 @@ module TurboTests
 
     def use_runtime_info?
       return true if @parallel_options[:group_by] == :runtime
+      return false if @parallel_options[:group_by] != :default
 
       runtimes = ParallelTests::RSpec::Runner.send(:runtimes, tests_files, @parallel_options)
       runtimes.size * 1.5 > tests_files.size
