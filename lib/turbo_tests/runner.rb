@@ -13,6 +13,7 @@ module TurboTests
       files = opts[:files]
       formatters = opts[:formatters]
       tags = opts[:tags]
+      parallel_options = opts[:parallel_options]
 
       # SEE: https://bit.ly/2NP87Cz
       start_time = opts.fetch(:start_time) { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
@@ -38,7 +39,8 @@ module TurboTests
         fail_fast: fail_fast,
         count: count,
         seed: seed,
-        seed_used: seed_used
+        seed_used: seed_used,
+        parallel_options: parallel_options
       ).run
     end
 
@@ -46,7 +48,6 @@ module TurboTests
       @reporter = opts[:reporter]
       @files = opts[:files]
       @tags = opts[:tags]
-      @runtime_log = opts[:runtime_log] || "tmp/turbo_rspec_runtime.log"
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
       @count = opts[:count]
@@ -55,6 +56,10 @@ module TurboTests
       @failure_count = 0
       @seed = opts[:seed]
       @seed_used = opts[:seed_used]
+
+      @runtime_log = opts[:runtime_log] || "tmp/turbo_rspec_runtime.log"
+      @parallel_options = opts.fetch(:parallel_options, {})
+      @parallel_options[:runtime_log] = @runtime_log
 
       @messages = Thread::Queue.new
       @threads = []
@@ -67,27 +72,17 @@ module TurboTests
         ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size
       ].min
 
-      use_runtime_info = @files == ["spec"]
-
-      group_opts = {}
-
-      if use_runtime_info
-        group_opts[:runtime_log] = @runtime_log
-      else
-        group_opts[:group_by] = :filesize
-      end
-
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
           @files,
           @num_processes,
-          **group_opts
+          @parallel_options
         )
 
       setup_tmp_dir
 
       subprocess_opts = {
-        record_runtime: use_runtime_info
+        record_runtime: @parallel_options[:group_by] == :runtime
       }
 
       report_number_of_tests(tests_in_groups)

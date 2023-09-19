@@ -98,16 +98,20 @@ module TurboTests
         end
       end
 
-      success = TurboTests::Runner.run(
+      parallel_options = ParallelTests::CLI.new.send(:parse_options!, @argv.unshift("--type", "rspec"))
+      files = parallel_options.fetch(:files, ["spec"])
+
+      success = TurboTests::Runner.run({
         formatters: formatters,
         tags: tags,
-        files: @argv.empty? ? ["spec"] : @argv,
+        files: files,
         runtime_log: runtime_log,
         verbose: verbose,
         fail_fast: fail_fast,
         count: count,
-        seed: seed
-      )
+        seed: seed,
+        parallel_options: parallel_options
+      })
 
       if success
         exit 0
