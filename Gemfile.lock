@@ -1,8 +1,7 @@
 PATH
   remote: .
   specs:
-    turbo_tests (2.1.1)
-      bundler (>= 2.1)
+    turbo_tests (2.2.0)
       parallel_tests (>= 3.3.0, < 5)
       rspec (>= 3.10)
 
@@ -42,4 +41,4 @@ DEPENDENCIES
   turbo_tests!
 
 BUNDLED WITH
-   2.4.6
+   2.4.19

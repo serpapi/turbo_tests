@@ -26,4 +26,4 @@ jobs:
       - name: Run tests
         timeout-minutes: 5
         run: |
-          ${{matrix.env}} bundle exec turbo_tests -n4
+          bundle exec turbo_tests -n4
