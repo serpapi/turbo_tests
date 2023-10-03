@@ -97,6 +97,7 @@ Options:
     -v, --verbose                    More output
         --fail-fast=[N]
         --seed SEED                  Seed for rspec
+        --print_failed_group         Prints group that had failures in it
 ```
 
 ## Development
