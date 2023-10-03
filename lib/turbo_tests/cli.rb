@@ -17,6 +17,7 @@ module TurboTests
       verbose = false
       fail_fast = nil
       seed = nil
+      parallel_options = {}
 
       OptionParser.new { |opts|
         opts.banner = <<~BANNER
@@ -45,6 +46,29 @@ module TurboTests
             name: name,
             outputs: []
           }
+        end
+
+        opts.on("-p", "--pattern [PATTERN]", "run tests matching this regex pattern") do |pattern|
+          parallel_options[:pattern] = /#{pattern}/
+        end
+
+        opts.on("--exclude-pattern", "--exclude-pattern [PATTERN]", "exclude tests matching this regex pattern") do |pattern|
+          parallel_options[:exclude_pattern] = /#{pattern}/
+        end
+
+        opts.on(
+          "--group-by [TYPE]",
+          <<~TEXT.rstrip.split("\n").join("\n#{' ' * 37}")
+            group tests by:
+            found - order of finding files
+            steps - number of cucumber/spinach steps
+            scenarios - individual cucumber scenarios
+            filesize - by size of the file
+            runtime - info from runtime log
+            default - runtime when runtime log is filled otherwise filesize
+          TEXT
+        ) do |type|
+          parallel_options[:group_by] = type.to_sym
         end
 
         opts.on("-t", "--tag TAG", "Run examples with the specified tag.") do |tag|
@@ -98,7 +122,7 @@ module TurboTests
         end
       end
 
-      success = TurboTests::Runner.run(
+      success = TurboTests::Runner.run({
         formatters: formatters,
         tags: tags,
         files: @argv.empty? ? ["spec"] : @argv,
@@ -106,8 +130,9 @@ module TurboTests
         verbose: verbose,
         fail_fast: fail_fast,
         count: count,
-        seed: seed
-      )
+        seed: seed,
+        parallel_options: parallel_options
+      })
 
       if success
         exit 0
