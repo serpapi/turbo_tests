@@ -19,6 +19,7 @@ module TurboTests
       seed = nil
       print_failed_group = false
       create = false
+      nice = false
 
       OptionParser.new do |opts|
         opts.banner = <<~BANNER
@@ -95,6 +96,10 @@ module TurboTests
         opts.on("--print_failed_group", "Prints group that had failures in it") do
           print_failed_group = true
         end
+
+        opts.on("--nice", "execute test commands with low priority") do
+          nice = true
+        end
       end.parse!(@argv)
 
       if create
@@ -126,6 +131,7 @@ module TurboTests
         fail_fast: fail_fast,
         count: count,
         seed: seed,
+        nice: nice,
         print_failed_group: print_failed_group,
         parallel_options: parallel_options,
       )

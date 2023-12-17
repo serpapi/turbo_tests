@@ -25,14 +25,14 @@
   "lib/turbo_tests/reporter.rb:1386902608": [
     [7, 5, 400, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 2092085575]
   ],
-  "lib/turbo_tests/runner.rb:1170052458": [
+  "lib/turbo_tests/runner.rb:1092969829": [
     [13, 5, 271, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 21989008],
-    [20, 5, 1253, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 1925027850],
-    [211, 11, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [229, 47, 6, "Style/GlobalStdStream: Use `$stderr` instead of `STDERR`.", 3356712163],
-    [231, 21, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [240, 7, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [300, 9, 6, "Style/GlobalStdStream: Use `$stdout` instead of `STDOUT`.", 3356722952]
+    [20, 5, 1311, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 1925027850],
+    [216, 11, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [234, 47, 6, "Style/GlobalStdStream: Use `$stderr` instead of `STDERR`.", 3356712163],
+    [236, 21, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [245, 7, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [305, 9, 6, "Style/GlobalStdStream: Use `$stdout` instead of `STDOUT`.", 3356722952]
   ],
   "spec/cli_spec.rb:3990998076": [
     [1, 1, 30, "RSpec/SpecFilePathFormat: Spec path should end with `turbo_tests/cli*_spec.rb`.", 965721356],
