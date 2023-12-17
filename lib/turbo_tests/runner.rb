@@ -58,6 +58,7 @@ module TurboTests
 
       @messages = Thread::Queue.new
       @threads = []
+      @wait_threads = []
       @error = false
     end
 
@@ -94,9 +95,12 @@ module TurboTests
 
       @reporter.seed_notification(@seed, @seed_used)
 
-      wait_threads = tests_in_groups.map.with_index do |tests, process_id|
+      old_signal = Signal.trap(:INT) { handle_interrupt }
+
+      @wait_threads = tests_in_groups.map.with_index do |tests, process_id|
         start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
-      end
+      end.compact
+      @interrupt_handled = false
 
       handle_messages
 
@@ -106,10 +110,27 @@ module TurboTests
 
       @threads.each(&:join)
 
-      @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
+      Signal.trap(:INT, old_signal)
+
+      @reporter.failed_examples.empty? && @wait_threads.map(&:value).all?(&:success?)
     end
 
     private
+
+    def handle_interrupt
+      if @interrupt_handled
+        Kernel.exit
+      else
+        puts "\nShutting down subprocesses..."
+        @wait_threads.each do |wait_thr|
+          child_pid = wait_thr.pid
+          pgid = Process.respond_to?(:getpgid) ? Process.getpgid(child_pid) : 0
+          Process.kill(:INT, child_pid) if Process.pid != pgid
+        rescue Errno::ESRCH
+        end
+        @interrupt_handled = true
+      end
+    end
 
     def setup_tmp_dir
       begin
@@ -136,6 +157,8 @@ module TurboTests
           type: "exit",
           process_id: process_id
         }
+
+        nil
       else
         tmp_filename = "tmp/test-pipes/subprocess-#{process_id}"
 
@@ -185,6 +208,7 @@ module TurboTests
             File.open(tmp_filename) do |fd|
               fd.each_line do |line|
                 message = JSON.parse(line, symbolize_names: true)
+                break if message[:type] == "quit"
 
                 message[:process_id] = process_id
                 @messages << message
@@ -200,6 +224,13 @@ module TurboTests
         @threads << Thread.new {
           unless wait_thr.value.success?
             @messages << {type: "error"}
+          end
+
+          # If the rspec quit before sending anything to file, the other thread will be blocking.
+          # Send a message to awaken it. If the reading side has already closed this step will be skipped (EXNIO).
+          begin
+            File.write(tmp_filename, JSON.generate({type: "quit"}), mode: File::WRONLY | File::NONBLOCK)
+          rescue Errno::ENXIO
           end
         }
 
