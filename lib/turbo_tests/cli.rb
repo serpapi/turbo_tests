@@ -17,6 +17,7 @@ module TurboTests
       verbose = false
       fail_fast = nil
       seed = nil
+      nice = false
 
       OptionParser.new { |opts|
         opts.banner = <<~BANNER
@@ -81,6 +82,10 @@ module TurboTests
         opts.on("--seed SEED", "Seed for rspec") do |s|
           seed = s
         end
+
+        opts.on("--nice", "execute test commands with low priority") do
+          nice = true
+        end
       }.parse!(@argv)
 
       requires.each { |f| require(f) }
@@ -106,7 +111,8 @@ module TurboTests
         verbose: verbose,
         fail_fast: fail_fast,
         count: count,
-        seed: seed
+        seed: seed,
+        nice: nice
       )
 
       if success
