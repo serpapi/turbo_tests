@@ -97,6 +97,8 @@ module TurboTests
         ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size,
       ].min
 
+      options_file = [".rspec_parallel", "spec/parallel_spec.opts", "spec/spec.opts"].detect { |f| File.file?(f) }
+
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
           @files,
@@ -108,6 +110,7 @@ module TurboTests
 
       subprocess_opts = {
         record_runtime: @record_runtime,
+        options_file: options_file,
       }
 
       @reporter.report(tests_in_groups) do |_reporter|
@@ -151,7 +154,7 @@ module TurboTests
       )
     end
 
-    def start_subprocess(env, extra_args, tests, process_id, record_runtime:)
+    def start_subprocess(env, extra_args, tests, process_id, record_runtime:, options_file:)
       if tests.empty?
         @messages << {
           type: "exit",
@@ -188,6 +191,8 @@ module TurboTests
           []
         end
 
+        spec_opts = ["-O", options_file] if options_file
+
         command = [
           *command_name,
           *extra_args,
@@ -195,9 +200,9 @@ module TurboTests
           "--format",
           "TurboTests::JsonRowsFormatter",
           *record_runtime_options,
+          *spec_opts,
           *tests,
         ]
-        command.unshift(ENV["BUNDLE_BIN_PATH"], "exec") if ENV["BUNDLE_BIN_PATH"]
         command.unshift("nice") if @nice
 
         if @verbose
