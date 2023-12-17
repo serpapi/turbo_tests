@@ -2,6 +2,7 @@
 
 require "json"
 require "parallel_tests/rspec/runner"
+require "tmpdir"
 
 require_relative "../utils/hash_extension"
 
@@ -84,8 +85,6 @@ module TurboTests
           **group_opts
         )
 
-      setup_tmp_dir
-
       subprocess_opts = {
         record_runtime: use_runtime_info
       }
@@ -94,50 +93,48 @@ module TurboTests
 
       @reporter.seed_notification(@seed, @seed_used)
 
-      wait_threads = tests_in_groups.map.with_index do |tests, process_id|
-        start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
+      setup_tmp_dir do |dir|
+        wait_threads = tests_in_groups.map.with_index do |tests, process_id|
+          start_regular_subprocess(tests, process_id + 1, dir, **subprocess_opts)
+        end
+
+        handle_messages
+
+        @reporter.finish
+
+        @reporter.seed_notification(@seed, @seed_used)
+
+        @threads.each(&:join)
       end
-
-      handle_messages
-
-      @reporter.finish
-
-      @reporter.seed_notification(@seed, @seed_used)
-
-      @threads.each(&:join)
 
       @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
     end
 
     private
 
-    def setup_tmp_dir
-      begin
-        FileUtils.rm_r("tmp/test-pipes")
-      rescue Errno::ENOENT
-      end
-
-      FileUtils.mkdir_p("tmp/test-pipes/")
+    def setup_tmp_dir(&block)
+      Dir.mktmpdir("turbo_tests-pipes", &block)
     end
 
-    def start_regular_subprocess(tests, process_id, **opts)
+    def start_regular_subprocess(tests, process_id, tmpdir, **opts)
       start_subprocess(
         {"TEST_ENV_NUMBER" => process_id.to_s},
         @tags.map { |tag| "--tag=#{tag}" },
         tests,
         process_id,
+        tmpdir,
         **opts
       )
     end
 
-    def start_subprocess(env, extra_args, tests, process_id, record_runtime:)
+    def start_subprocess(env, extra_args, tests, process_id, tmpdir, record_runtime:)
       if tests.empty?
         @messages << {
           type: "exit",
           process_id: process_id
         }
       else
-        tmp_filename = "tmp/test-pipes/subprocess-#{process_id}"
+        tmp_filename = File.join(tmpdir, "subprocess-#{process_id}")
 
         begin
           File.mkfifo(tmp_filename)
