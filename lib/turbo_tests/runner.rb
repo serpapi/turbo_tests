@@ -77,6 +77,8 @@ module TurboTests
         group_opts[:group_by] = :filesize
       end
 
+      options_file = [".rspec_parallel", "spec/parallel_spec.opts", "spec/spec.opts"].detect { |f| File.file?(f) }
+
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
           @files,
@@ -87,7 +89,8 @@ module TurboTests
       setup_tmp_dir
 
       subprocess_opts = {
-        record_runtime: use_runtime_info
+        record_runtime: use_runtime_info,
+        options_file: options_file
       }
 
       report_number_of_tests(tests_in_groups)
@@ -130,7 +133,7 @@ module TurboTests
       )
     end
 
-    def start_subprocess(env, extra_args, tests, process_id, record_runtime:)
+    def start_subprocess(env, extra_args, tests, process_id, record_runtime:, options_file:)
       if tests.empty?
         @messages << {
           type: "exit",
@@ -157,6 +160,8 @@ module TurboTests
             []
           end
 
+        spec_opts = ["-O", options_file] if options_file
+
         command = [
           "rspec",
           *extra_args,
@@ -164,6 +169,7 @@ module TurboTests
           "--format", "TurboTests::JsonRowsFormatter",
           "--out", tmp_filename,
           *record_runtime_options,
+          *spec_opts,
           *tests
         ]
         command.unshift(ENV["BUNDLE_BIN_PATH"], "exec") if ENV["BUNDLE_BIN_PATH"]
