@@ -22,6 +22,7 @@ module TurboTests
       count = opts.fetch(:count, nil)
       seed = opts.fetch(:seed) || rand(0xFFFF).to_s
       seed_used = !opts[:seed].nil?
+      nice = opts.fetch(:nice, false)
 
       if verbose
         STDERR.puts "VERBOSE"
@@ -38,7 +39,8 @@ module TurboTests
         fail_fast: fail_fast,
         count: count,
         seed: seed,
-        seed_used: seed_used
+        seed_used: seed_used,
+        nice: nice
       ).run
     end
 
@@ -55,6 +57,7 @@ module TurboTests
       @failure_count = 0
       @seed = opts[:seed]
       @seed_used = opts[:seed_used]
+      @nice = opts[:nice]
 
       @messages = Thread::Queue.new
       @threads = []
@@ -167,6 +170,7 @@ module TurboTests
           *tests
         ]
         command.unshift(ENV["BUNDLE_BIN_PATH"], "exec") if ENV["BUNDLE_BIN_PATH"]
+        command.unshift("nice") if @nice
 
         if @verbose
           command_str = [
