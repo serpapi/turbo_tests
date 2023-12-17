@@ -105,8 +105,6 @@ module TurboTests
           **@parallel_options,
         )
 
-      setup_tmp_dir
-
       subprocess_opts = {
         record_runtime: @record_runtime,
       }
@@ -151,15 +149,6 @@ module TurboTests
         end
         @interrupt_handled = true
       end
-    end
-
-    def setup_tmp_dir
-      begin
-        FileUtils.rm_r("tmp/test-pipes")
-      rescue Errno::ENOENT
-      end
-
-      FileUtils.mkdir_p("tmp/test-pipes/")
     end
 
     def start_regular_subprocess(tests, process_id, **opts)
