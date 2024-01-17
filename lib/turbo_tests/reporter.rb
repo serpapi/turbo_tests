@@ -4,8 +4,8 @@ module TurboTests
   class Reporter
     attr_writer :load_time
 
-    def self.from_config(formatter_config, start_time)
-      reporter = new(start_time)
+    def self.from_config(formatter_config, start_time, seed, seed_used)
+      reporter = new(start_time, seed, seed_used)
 
       formatter_config.each do |config|
         name, outputs = config.values_at(:name, :outputs)
@@ -23,13 +23,15 @@ module TurboTests
     attr_reader :pending_examples
     attr_reader :failed_examples
 
-    def initialize(start_time)
+    def initialize(start_time, seed, seed_used)
       @formatters = []
       @pending_examples = []
       @failed_examples = []
       @all_examples = []
       @messages = []
       @start_time = start_time
+      @seed = seed
+      @seed_used = seed_used
       @load_time = 0
       @errors_outside_of_examples_count = 0
     end
@@ -48,6 +50,33 @@ module TurboTests
 
         @formatters << formatter_class.new(output)
       end
+    end
+
+    # Borrowed from RSpec::Core::Reporter
+    # https://github.com/rspec/rspec-core/blob/1eeadce5aa7137ead054783c31ff35cbfe9d07cc/lib/rspec/core/reporter.rb#L206
+    def report(expected_example_count)
+      start(expected_example_count)
+      begin
+        yield self
+      ensure
+        finish
+      end
+    end
+
+    def start(example_groups)
+      delegate_to_formatters(:seed, RSpec::Core::Notifications::SeedNotification.new(@seed, @seed_used))
+
+      report_number_of_tests(example_groups)
+    end
+
+    def report_number_of_tests(groups)
+      name = ParallelTests::RSpec::Runner.test_file_name
+
+      num_processes = groups.size
+      num_tests = groups.map(&:size).sum
+      tests_per_process = (num_processes == 0 ? 0 : num_tests.to_f / num_processes).round
+
+      puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
     end
 
     def group_started(notification)
@@ -88,8 +117,7 @@ module TurboTests
     end
 
     def finish
-      # SEE: https://bit.ly/2NP87Cz
-      end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      end_time = RSpec::Core::Time.now
 
       delegate_to_formatters(:start_dump,
         RSpec::Core::Notifications::NullNotification)
@@ -112,11 +140,11 @@ module TurboTests
         ))
       delegate_to_formatters(:close,
         RSpec::Core::Notifications::NullNotification)
-    end
-
-    def seed_notification(seed, seed_used)
-      puts RSpec::Core::Notifications::SeedNotification.new(seed, seed_used).fully_formatted
-      puts
+      delegate_to_formatters(:seed,
+        RSpec::Core::Notifications::SeedNotification.new(
+          @seed,
+          @seed_used,
+        ))
     end
 
     protected
