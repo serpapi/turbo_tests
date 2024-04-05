@@ -81,3 +81,5 @@ module TurboTests
     end
   end
 end
+
+require "turbo_tests/windows" if RUBY_PLATFORM.match?(/mingw|mswin/)
