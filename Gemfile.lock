@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    turbo_tests (2.2.1)
+    turbo_tests (2.2.2)
       fileutils (~> 1.4)
       json (~> 2.3)
       open3 (~> 0.1)
