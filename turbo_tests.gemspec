@@ -21,6 +21,8 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "rspec", ">= 3.10"
   spec.add_dependency "parallel_tests", ">= 3.3.0", "< 5"
+  spec.add_dependency "fileutils", "~> 1.4"
+  spec.add_dependency "open3", "~> 0.1"
 
   spec.add_development_dependency "pry", "~> 0.14"
 

@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+require "securerandom"
 require "open3"
 require "fileutils"
 require "json"
+
 require "rspec"
 
 require "parallel_tests"
@@ -81,5 +83,3 @@ module TurboTests
     end
   end
 end
-
-require "turbo_tests/windows" if RUBY_PLATFORM.match?(/mingw|mswin/)
