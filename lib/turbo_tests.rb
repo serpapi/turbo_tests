@@ -3,6 +3,7 @@
 require "securerandom"
 require "open3"
 require "fileutils"
+require "ostruct"
 require "json"
 
 require "rspec"
