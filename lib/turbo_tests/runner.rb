@@ -10,16 +10,8 @@ module TurboTests
     using CoreExtensions
 
     def self.run(opts = {})
-      files = opts[:files]
-      formatters = opts[:formatters]
-      tags = opts[:tags]
-      parallel_options = opts[:parallel_options]
-
       start_time = opts.fetch(:start_time) { RSpec::Core::Time.now }
-      runtime_log = opts.fetch(:runtime_log, nil)
       verbose = opts.fetch(:verbose, false)
-      fail_fast = opts.fetch(:fail_fast, nil)
-      count = opts.fetch(:count, nil)
       seed = opts.fetch(:seed)
       seed_used = !seed.nil?
 
@@ -27,28 +19,22 @@ module TurboTests
         warn "VERBOSE"
       end
 
-      reporter = Reporter.from_config(formatters, start_time, seed, seed_used)
-
       new(
-        reporter: reporter,
-        files: files,
-        tags: tags,
-        runtime_log: runtime_log,
+        **opts,
+        start_time: start_time,
         verbose: verbose,
-        fail_fast: fail_fast,
-        count: count,
         seed: seed,
-        seed_used: seed_used,
-        parallel_options: parallel_options
+        seed_used: seed_used
       ).run
     end
 
-    def initialize(opts)
-      @reporter = opts[:reporter]
+    def initialize(**opts)
+      @formatters = opts[:formatters]
       @files = opts[:files]
       @tags = opts[:tags]
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
+      @start_time = opts[:start_time]
       @count = opts[:count]
       @seed = opts[:seed]
       @seed_used = opts[:seed_used]
@@ -67,6 +53,8 @@ module TurboTests
     end
 
     def run
+      @reporter = Reporter.from_config(@formatters, @start_time, @seed, @seed_used)
+
       @num_processes = [
         ParallelTests.determine_number_of_processes(@count),
         ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size

@@ -4,8 +4,8 @@ module TurboTests
   class Reporter
     attr_writer :load_time
 
-    def self.from_config(formatter_config, start_time, seed, seed_used)
-      reporter = new(start_time, seed, seed_used)
+    def self.from_config(formatter_config, *args)
+      reporter = new(*args)
 
       formatter_config.each do |config|
         name, outputs = config.values_at(:name, :outputs)
