@@ -4,8 +4,8 @@ module TurboTests
   class Reporter
     attr_writer :load_time
 
-    def self.from_config(formatter_config, start_time)
-      reporter = new(start_time)
+    def self.from_config(formatter_config, start_time, files, parallel_options)
+      reporter = new(start_time, files, parallel_options)
 
       formatter_config.each do |config|
         name, outputs = config.values_at(:name, :outputs)
@@ -23,7 +23,7 @@ module TurboTests
     attr_reader :pending_examples
     attr_reader :failed_examples
 
-    def initialize(start_time)
+    def initialize(start_time, files, parallel_options)
       @formatters = []
       @pending_examples = []
       @failed_examples = []
@@ -32,6 +32,8 @@ module TurboTests
       @start_time = start_time
       @load_time = 0
       @errors_outside_of_examples_count = 0
+      @files = files
+      @parallel_options = parallel_options
     end
 
     def add(name, outputs)
