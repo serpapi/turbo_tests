@@ -53,7 +53,7 @@ module TurboTests
     end
 
     def run
-      @reporter = Reporter.from_config(@formatters, @start_time, @seed, @seed_used)
+      @reporter = Reporter.from_config(@formatters, @start_time, @seed, @seed_used, @files, @parallel_options)
 
       @num_processes = [
         ParallelTests.determine_number_of_processes(@count),
