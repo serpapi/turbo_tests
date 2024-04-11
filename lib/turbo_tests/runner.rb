@@ -43,10 +43,12 @@ module TurboTests
 
       warn("VERBOSE") if verbose
 
-      reporter = Reporter.from_config(formatters, start_time, seed, seed_used)
+      reporter = Reporter.from_config(formatters, start_time, seed, seed_used, files, parallel_options)
 
       new(
         reporter: reporter,
+        formatters: formatters,
+        start_time: start_time,
         files: files,
         tags: tags,
         runtime_log: runtime_log,
@@ -62,12 +64,14 @@ module TurboTests
       ).run
     end
 
-    def initialize(opts)
+    def initialize(**opts)
+      @formatters = opts[:formatters]
       @reporter = opts[:reporter]
       @files = opts[:files]
       @tags = opts[:tags]
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
+      @start_time = opts[:start_time]
       @count = opts[:count]
       @seed = opts[:seed]
       @seed_used = opts[:seed_used]

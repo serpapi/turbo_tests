@@ -3,26 +3,27 @@
 module TurboTests
   class Reporter
     attr_writer :load_time
-
-    def self.from_config(formatter_config, start_time, seed, seed_used)
-      reporter = new(start_time, seed, seed_used)
-
-      formatter_config.each do |config|
-        name, outputs = config.values_at(:name, :outputs)
-
-        outputs.map! do |filename|
-          (filename == "-") ? $stdout : File.open(filename, "w")
-        end
-
-        reporter.add(name, outputs)
-      end
-
-      reporter
-    end
-
     attr_reader :pending_examples, :failed_examples
 
-    def initialize(start_time, seed, seed_used)
+    class << self
+      def from_config(formatter_config, start_time, seed, seed_used, files, parallel_options)
+        reporter = new(start_time, seed, seed_used, files, parallel_options)
+
+        formatter_config.each do |config|
+          name, outputs = config.values_at(:name, :outputs)
+
+          outputs.map! do |filename|
+            (filename == "-") ? $stdout : File.open(filename, "w")
+          end
+
+          reporter.add(name, outputs)
+        end
+
+        reporter
+      end
+    end
+
+    def initialize(start_time, seed, seed_used, files, parallel_options)
       @formatters = []
       @pending_examples = []
       @failed_examples = []
@@ -33,6 +34,8 @@ module TurboTests
       @seed_used = seed_used
       @load_time = 0
       @errors_outside_of_examples_count = 0
+      @files = files
+      @parallel_options = parallel_options
     end
 
     def add(name, outputs)
