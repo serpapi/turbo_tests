@@ -164,7 +164,7 @@ module TurboTests
     end
 
     def output_row(obj)
-      output.puts(obj.to_json)
+      output.puts ENV["RSPEC_FORMATTER_OUTPUT_ID"] + obj.to_json
       output.flush
     end
   end
