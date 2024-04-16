@@ -24,7 +24,7 @@ module TurboTests
       seed_used = !opts[:seed].nil?
 
       if verbose
-        STDERR.puts "VERBOSE"
+        warn "VERBOSE"
       end
 
       reporter = Reporter.from_config(formatters, start_time)
@@ -134,18 +134,18 @@ module TurboTests
       if tests.empty?
         @messages << {
           type: "exit",
-          process_id: process_id
+          process_id: process_id,
         }
       else
-        tmp_filename = "tmp/test-pipes/subprocess-#{process_id}"
-
-        begin
-          File.mkfifo(tmp_filename)
-        rescue Errno::EEXIST
-        end
-
+        env["RSPEC_FORMATTER_OUTPUT_ID"] = SecureRandom.uuid
         env["RUBYOPT"] = ["-I#{File.expand_path("..", __dir__)}", ENV["RUBYOPT"]].compact.join(" ")
         env["RSPEC_SILENCE_FILTER_ANNOUNCEMENTS"] = "1"
+
+        if ENV["BUNDLE_BIN_PATH"]
+          command_name = [ENV["BUNDLE_BIN_PATH"], "exec", "rspec"]
+        else
+          command_name = "rspec"
+        end
 
         record_runtime_options =
           if record_runtime
@@ -158,23 +158,23 @@ module TurboTests
           end
 
         command = [
-          "rspec",
+          *command_name,
           *extra_args,
-          "--seed", @seed,
+          "--seed", rand(0xFFFF).to_s,
+          "--format", "ParallelTests::RSpec::RuntimeLogger",
+          "--out", @runtime_log,
           "--format", "TurboTests::JsonRowsFormatter",
-          "--out", tmp_filename,
           *record_runtime_options,
-          *tests
+          *tests,
         ]
-        command.unshift(ENV["BUNDLE_BIN_PATH"], "exec") if ENV["BUNDLE_BIN_PATH"]
 
         if @verbose
           command_str = [
             env.map { |k, v| "#{k}=#{v}" }.join(" "),
-            command.join(" ")
+            command.join(" "),
           ].select { |x| x.size > 0 }.join(" ")
 
-          STDERR.puts "Process #{process_id}: #{command_str}"
+          warn "Process #{process_id}: #{command_str}"
         end
 
         stdin, stdout, stderr, wait_thr = Open3.popen3(env, *command)
@@ -182,26 +182,30 @@ module TurboTests
 
         @threads <<
           Thread.new do
-            File.open(tmp_filename) do |fd|
-              fd.each_line do |line|
-                message = JSON.parse(line, symbolize_names: true)
+            stdout.each_line do |line|
+              result = line.split(env["RSPEC_FORMATTER_OUTPUT_ID"])
 
-                message[:process_id] = process_id
-                @messages << message
-              end
+              output = result.shift
+              print(output) unless output.empty?
+
+              message = result.shift
+              next unless message
+
+              message = JSON.parse(message, symbolize_names: true)
+              message[:process_id] = process_id
+              @messages << message
             end
 
-            @messages << {type: "exit", process_id: process_id}
+            @messages << { type: "exit", process_id: process_id }
           end
 
-        @threads << start_copy_thread(stdout, STDOUT)
         @threads << start_copy_thread(stderr, STDERR)
 
-        @threads << Thread.new {
+        @threads << Thread.new do
           unless wait_thr.value.success?
-            @messages << {type: "error"}
+            @messages << { type: "error" }
           end
-        }
+        end
 
         wait_thr
       end

@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+require "securerandom"
 require "open3"
 require "fileutils"
 require "json"
+
 require "rspec"
 
 require "parallel_tests"
