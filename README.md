@@ -99,6 +99,18 @@ Options:
         --seed SEED                  Seed for rspec
 ```
 
+To pass any options supported by paralell_tests, use `--`:
+
+```bash
+bundle exec turbo_tests -n 4 -- --only-group 1 --pattern spec/system
+```
+
+`turbo_tests` supports custom formatter such as Fuubar, but you might need to require it:
+
+```bash
+bundle exec turbo_tests -r fuubar -f Fuubar spec/whatever
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.

@@ -4,8 +4,8 @@ module TurboTests
   class Reporter
     attr_writer :load_time
 
-    def self.from_config(formatter_config, start_time)
-      reporter = new(start_time)
+    def self.from_config(formatter_config, start_time, files, parallel_options)
+      reporter = new(start_time, files, parallel_options)
 
       formatter_config.each do |config|
         name, outputs = config.values_at(:name, :outputs)
@@ -23,7 +23,7 @@ module TurboTests
     attr_reader :pending_examples
     attr_reader :failed_examples
 
-    def initialize(start_time)
+    def initialize(start_time, files, parallel_options)
       @formatters = []
       @pending_examples = []
       @failed_examples = []
@@ -32,9 +32,12 @@ module TurboTests
       @start_time = start_time
       @load_time = 0
       @errors_outside_of_examples_count = 0
+      @files = files
+      @parallel_options = parallel_options
     end
 
     def add(name, outputs)
+      custom_formatters = false
       outputs.each do |output|
         formatter_class =
           case name
@@ -43,11 +46,18 @@ module TurboTests
           when "d", "documentation"
             RSpec::Core::Formatters::DocumentationFormatter
           else
+            custom_formatters = true
             Kernel.const_get(name)
           end
 
         @formatters << formatter_class.new(output)
       end
+
+      start if custom_formatters
+    end
+
+    def start
+      delegate_to_formatters(:start, RSpec::Core::Notifications::StartNotification.new(examples_count))
     end
 
     def group_started(notification)
@@ -120,6 +130,15 @@ module TurboTests
     end
 
     protected
+
+    def examples_count
+      files = ParallelTests::RSpec::Runner.send(:find_tests, @files, @parallel_options)
+      output_file = Tempfile.new("rspec-summary")
+      `#{ENV.fetch("BUNDLE_BIN_PATH")} exec rspec --dry-run --format json --out='#{output_file.path}' #{files.join(" ")}`
+
+      json_summary = JSON.parse(output_file.read, symbolize_names: true)
+      json_summary.dig(:summary, :example_count) || 0
+    end
 
     def delegate_to_formatters(method, *args)
       @formatters.each do |formatter|
