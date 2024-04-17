@@ -99,10 +99,16 @@ Options:
         --seed SEED                  Seed for rspec
 ```
 
-To pass any options supported by paralell_tests, use `--` :
+To pass any options supported by paralell_tests, use `--`:
 
 ```bash
 bundle exec turbo_tests -n 4 -- --only-group 1 --pattern spec/system
+```
+
+`turbo_tests` supports custom formatter such as Fuubar, but you might need to require it:
+
+```bash
+bundle exec turbo_tests -r fuubar -f Fuubar spec/whatever
 ```
 
 ## Development
