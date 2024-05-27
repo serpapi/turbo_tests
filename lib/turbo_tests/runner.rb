@@ -160,7 +160,7 @@ module TurboTests
         command = [
           *command_name,
           *extra_args,
-          "--seed", rand(0xFFFF).to_s,
+          "--seed", @seed,
           "--format", "ParallelTests::RSpec::RuntimeLogger",
           "--out", @runtime_log,
           "--format", "TurboTests::JsonRowsFormatter",
