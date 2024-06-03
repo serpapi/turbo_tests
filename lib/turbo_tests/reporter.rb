@@ -117,8 +117,9 @@ module TurboTests
       @messages << message
     end
 
-    def error_outside_of_examples
+    def error_outside_of_examples(error_message)
       @errors_outside_of_examples_count += 1
+      message error_message
     end
 
     def finish

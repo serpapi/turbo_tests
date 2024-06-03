@@ -27,7 +27,7 @@ An error occurred while loading #{fixture}.
       }
 
       let(:expected_end_of_output) do
-        "0 examples, 0 failures\n"\
+        "0 examples, 0 failures, 1 error occurred outside of examples\n"\
         "\n"\
         "Randomized with seed #{seed}"
       end
@@ -81,7 +81,7 @@ An error occurred while loading #{fixture}.
       }
 
       let(:expected_end_of_output) do
-        "0 examples, 0 failures"
+        "0 examples, 0 failures, 1 error occurred outside of examples"
       end
 
       let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }

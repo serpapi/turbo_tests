@@ -259,12 +259,17 @@ module TurboTests
             break
           end
         when "message"
-          @reporter.message(message[:message])
+          if message[:message].include?("An error occurred") || message[:message].include?("occurred outside of examples")
+            @reporter.error_outside_of_examples(message[:message])
+            @error = true
+          else
+            @reporter.message(message[:message])
+          end
         when "seed"
         when "close"
         when "error"
-          @reporter.error_outside_of_examples
-          @error = true
+          # Do nothing
+          nil
         when "exit"
           exited += 1
           if exited == @num_processes
