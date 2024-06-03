@@ -53,9 +53,9 @@ module TurboTests
     end
 
     # Borrowed from RSpec::Core::Reporter
-    # https://github.com/rspec/rspec-core/blob/1eeadce5aa7137ead054783c31ff35cbfe9d07cc/lib/rspec/core/reporter.rb#L206
-    def report(expected_example_count)
-      start(expected_example_count)
+    # https://github.com/rspec/rspec-core/blob/5699fcdc4723087ff6139af55bd155ad9ad61a7b/lib/rspec/core/reporter.rb#L71
+    def report(example_groups)
+      start(example_groups)
       begin
         yield self
       ensure
@@ -63,10 +63,15 @@ module TurboTests
       end
     end
 
-    def start(example_groups)
-      delegate_to_formatters(:seed, RSpec::Core::Notifications::SeedNotification.new(@seed, @seed_used))
+    def start(example_groups, time=RSpec::Core::Time.now)
+      @start = time
+      @load_time = (@start - @start_time).to_f
 
       report_number_of_tests(example_groups)
+      expected_example_count = example_groups.flatten(1).count
+
+      delegate_to_formatters(:seed, RSpec::Core::Notifications::SeedNotification.new(@seed, @seed_used))
+      delegate_to_formatters(:start, RSpec::Core::Notifications::StartNotification.new(expected_example_count, @load_time))
     end
 
     def report_number_of_tests(groups)
@@ -119,8 +124,10 @@ module TurboTests
     def finish
       end_time = RSpec::Core::Time.now
 
-      delegate_to_formatters(:start_dump,
-        RSpec::Core::Notifications::NullNotification)
+      @duration = end_time - @start_time
+      delegate_to_formatters :stop, RSpec::Core::Notifications::ExamplesNotification.new(self)
+
+      delegate_to_formatters :start_dump, RSpec::Core::Notifications::NullNotification
       delegate_to_formatters(:dump_pending,
         RSpec::Core::Notifications::ExamplesNotification.new(
           self
@@ -138,13 +145,13 @@ module TurboTests
           @load_time,
           @errors_outside_of_examples_count
         ))
-      delegate_to_formatters(:close,
-        RSpec::Core::Notifications::NullNotification)
       delegate_to_formatters(:seed,
         RSpec::Core::Notifications::SeedNotification.new(
           @seed,
           @seed_used,
         ))
+    ensure
+      delegate_to_formatters :close, RSpec::Core::Notifications::NullNotification
     end
 
     protected

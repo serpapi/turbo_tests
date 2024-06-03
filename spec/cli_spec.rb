@@ -11,8 +11,9 @@ RSpec.describe TurboTests::CLI do
     context "errors outside of examples" do
       let(:expected_start_of_output) {
 %(
-Randomized with seed #{seed}
 1 processes for 1 specs, ~ 1 specs per process
+
+Randomized with seed #{seed}
 
 An error occurred while loading #{fixture}.
 \e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m
@@ -27,7 +28,7 @@ An error occurred while loading #{fixture}.
 
       let(:expected_end_of_output) do
         "0 examples, 0 failures\n"\
-        "\n\n"\
+        "\n"\
         "Randomized with seed #{seed}"
       end
 
@@ -57,7 +58,7 @@ An error occurred while loading #{fixture}.
           expect(output).to include(part)
         end
 
-        expect(output).to end_with("3 examples, 0 failures, 3 pending\n\n\nRandomized with seed #{seed}")
+        expect(output).to end_with("3 examples, 0 failures, 3 pending\n\nRandomized with seed #{seed}")
       end
     end
   end
