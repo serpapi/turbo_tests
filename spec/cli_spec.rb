@@ -128,4 +128,21 @@ An error occurred while loading #{fixture}.
       expect(output).to include("Test info in extra_failure_lines")
     end
   end
+
+  describe "full error failure message and line" do
+    let(:fixture) { "./fixtures/rspec/no_method_error_spec.rb" }
+
+    it "outputs file name and line number" do
+      expect($?.exitstatus).to eql(1)
+
+      [
+        "undefined method `[]' for nil:NilClass",
+        'it("fails") { expect(nil[:key]).to eql("value") }',
+        "# #{fixture}:2:in `block (2 levels) in <top (required)>'",
+        "1 example, 1 failure",
+      ].each do |part|
+        expect(output).to include(part)
+      end
+    end
+  end
 end
