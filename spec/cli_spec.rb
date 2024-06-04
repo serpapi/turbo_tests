@@ -136,7 +136,7 @@ An error occurred while loading #{fixture}.
       expect($?.exitstatus).to eql(1)
 
       [
-        "undefined method `[]' for nil:NilClass",
+        "undefined method `[]' for nil",
         'it("fails") { expect(nil[:key]).to eql("value") }',
         "# #{fixture}:2:in `block (2 levels) in <top (required)>'",
         "1 example, 1 failure",
