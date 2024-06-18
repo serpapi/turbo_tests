@@ -98,7 +98,7 @@ module TurboTests
         end
       end
 
-      success = TurboTests::Runner.run(
+      exitstatus = TurboTests::Runner.run(
         formatters: formatters,
         tags: tags,
         files: @argv.empty? ? ["spec"] : @argv,
@@ -109,11 +109,8 @@ module TurboTests
         seed: seed
       )
 
-      if success
-        exit 0
-      else
-        exit 1
-      end
+      # From https://github.com/serpapi/turbo_tests/pull/20/
+      exit exitstatus
     end
   end
 end

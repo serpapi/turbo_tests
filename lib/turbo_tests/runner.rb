@@ -14,20 +14,19 @@ module TurboTests
       formatters = opts[:formatters]
       tags = opts[:tags]
 
-      # SEE: https://bit.ly/2NP87Cz
-      start_time = opts.fetch(:start_time) { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
+      start_time = opts.fetch(:start_time) { RSpec::Core::Time.now }
       runtime_log = opts.fetch(:runtime_log, nil)
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
-      seed = opts.fetch(:seed) || rand(0xFFFF).to_s
-      seed_used = !opts[:seed].nil?
+      seed = opts.fetch(:seed)
+      seed_used = !seed.nil?
 
       if verbose
         warn "VERBOSE"
       end
 
-      reporter = Reporter.from_config(formatters, start_time)
+      reporter = Reporter.from_config(formatters, start_time, seed, seed_used)
 
       new(
         reporter: reporter,
@@ -38,7 +37,7 @@ module TurboTests
         fail_fast: fail_fast,
         count: count,
         seed: seed,
-        seed_used: seed_used
+        seed_used: seed_used,
       ).run
     end
 
@@ -50,11 +49,12 @@ module TurboTests
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
       @count = opts[:count]
+      @seed = opts[:seed]
+      @seed_used = opts[:seed_used]
+
       @load_time = 0
       @load_count = 0
       @failure_count = 0
-      @seed = opts[:seed]
-      @seed_used = opts[:seed_used]
 
       @messages = Thread::Queue.new
       @threads = []
@@ -87,26 +87,25 @@ module TurboTests
       setup_tmp_dir
 
       subprocess_opts = {
-        record_runtime: use_runtime_info
+        record_runtime: use_runtime_info,
       }
 
-      report_number_of_tests(tests_in_groups)
+      @reporter.report(tests_in_groups) do |reporter|
+        wait_threads = tests_in_groups.map.with_index do |tests, process_id|
+          start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
+        end
 
-      @reporter.seed_notification(@seed, @seed_used)
+        handle_messages
 
-      wait_threads = tests_in_groups.map.with_index do |tests, process_id|
-        start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
+        @threads.each(&:join)
+
+        if @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
+          0
+        else
+          # From https://github.com/serpapi/turbo_tests/pull/20/
+          wait_threads.map { |thread| thread.value.exitstatus }.max
+        end
       end
-
-      handle_messages
-
-      @reporter.finish
-
-      @reporter.seed_notification(@seed, @seed_used)
-
-      @threads.each(&:join)
-
-      @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
     end
 
     private
@@ -157,12 +156,18 @@ module TurboTests
             []
           end
 
+        seed_option = if @seed_used
+          [
+            "--seed", @seed,
+          ]
+        else
+          []
+        end
+
         command = [
           *command_name,
           *extra_args,
-          "--seed", rand(0xFFFF).to_s,
-          "--format", "ParallelTests::RSpec::RuntimeLogger",
-          "--out", @runtime_log,
+          *seed_option,
           "--format", "TurboTests::JsonRowsFormatter",
           *record_runtime_options,
           *tests,
@@ -254,12 +259,17 @@ module TurboTests
             break
           end
         when "message"
-          @reporter.message(message[:message])
+          if message[:message].include?("An error occurred") || message[:message].include?("occurred outside of examples")
+            @reporter.error_outside_of_examples(message[:message])
+            @error = true
+          else
+            @reporter.message(message[:message])
+          end
         when "seed"
         when "close"
         when "error"
-          @reporter.error_outside_of_examples
-          @error = true
+          # Do nothing
+          nil
         when "exit"
           exited += 1
           if exited == @num_processes
@@ -276,16 +286,6 @@ module TurboTests
 
     def fail_fast_met
       !@fail_fast.nil? && @failure_count >= @fail_fast
-    end
-
-    def report_number_of_tests(groups)
-      name = ParallelTests::RSpec::Runner.test_file_name
-
-      num_processes = groups.size
-      num_tests = groups.map(&:size).sum
-      tests_per_process = (num_processes == 0 ? 0 : num_tests.to_f / num_processes).round
-
-      puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
     end
   end
 end
