@@ -19,7 +19,7 @@ module TurboTests
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
-      seed = opts.fetch(:seed)
+      seed = seed_from_opts_or_rspec_config(opts)
       seed_used = !seed.nil?
 
       if verbose
@@ -109,6 +109,29 @@ module TurboTests
     end
 
     private
+
+    def self.seed_from_opts_or_rspec_config(opts)
+      random_order_strategy = RSpec.configuration.ordering_registry.fetch(:random)
+      global_order_strategy = RSpec.configuration.ordering_registry.fetch(:global)
+
+      # There seems to be no direct way of checking `config.order` other than
+      # this.
+      rspec_order_is_random = global_order_strategy == random_order_strategy
+
+      # Seed may be set even if the `:global` ordering is not random, such as
+      # when `:global` is, say `::Identity` instead of `::Random`.
+      seed_from_config =
+        if rspec_order_is_random
+          RSpec.configuration.ordering_manager.seed
+        else
+          nil
+        end
+
+      seed_from_config = seed_from_config.to_s if seed_from_config
+
+      opts.fetch(:seed) || seed_from_config
+    end
+    private_class_method :seed_from_opts_or_rspec_config
 
     def setup_tmp_dir
       begin

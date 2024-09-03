@@ -98,6 +98,37 @@ An error occurred while loading #{fixture}.
       end
     end
 
+    context "when the RSpec config specifies config.order = :random" do
+      subject(:output) { `bundle exec turbo_tests --require ./fixtures/rspec/random_order_config.rb -f d #{fixture}`.strip }
+
+      let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
+
+      it "includes a randomly chosen seed in its output" do
+        expect($?.exitstatus).to eql(1)
+
+        output_start_seed_pattern = /\A1 processes for 1 specs, ~ 1 specs per process\n\nRandomized with seed \d+/
+        output_end_seed_pattern = /0 examples, 0 failures, 1 error occurred outside of examples\n\nRandomized with seed \d+/
+        expect(output).to match(output_start_seed_pattern)
+        expect(output).to match(output_end_seed_pattern)
+      end
+
+      it "prints the same seed at the start and end" do
+        expect(output).to match(/Randomized with seed (\d+)[\s\S]*Randomized with seed \1/)
+      end
+    end
+
+    context "when the RSpec config specifies config.order = :defined" do
+      subject(:output) { `bundle exec turbo_tests --require ./fixtures/rspec/defined_order_config.rb -f d #{fixture}`.strip }
+
+      let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
+
+      it "does not include a randomly chosen seed in its output" do
+        expect($?.exitstatus).to eql(1)
+
+        expect(output).to_not include("Randomized with seed")
+      end
+    end
+
     context "pending exceptions", :aggregate_failures do
       let(:fixture) { "./fixtures/rspec/pending_exceptions_spec.rb" }
 
