@@ -3,6 +3,75 @@ RSpec.describe TurboTests::CLI do
 
   subject(:output) { `bundle exec turbo_tests -f d #{fixture}`.strip }
 
+  context "when the 'profile' parameter was used" do
+    let(:profile) { 10 }
+
+    subject(:output) { `bundle exec turbo_tests -f d #{fixture} --profile #{profile}`.strip }
+    
+    context "profile param of string", pending: "Works, but error throws before i can catch it?" do
+      let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
+
+      let(:profile) { "sadasd" }
+
+      it "converts to integer" do
+        expect{ output }.to raise_error(ArgumentError, "Invalid argument for --profile. Must be an integer.")
+      end
+    end
+
+    context "errors outside of examples" do
+      let(:expected_start_of_output) {
+%(
+1 processes for 1 specs, ~ 1 specs per process
+
+An error occurred while loading #{fixture}.
+\e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m
+\e[31m\e[0m
+\e[31mZeroDivisionError:\e[0m
+\e[31m  divided by 0\e[0m
+\e[36m# #{fixture}:4:in `/'\e[0m
+\e[36m# #{fixture}:4:in `block in <top (required)>'\e[0m
+\e[36m# #{fixture}:1:in `<top (required)>'\e[0m
+).strip
+      }
+
+      let(:expected_end_of_output) do
+        "0 examples, 0 failures, 1 error occurred outside of examples"
+      end
+
+      let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
+
+      it "reports" do
+        expect($?.exitstatus).to eql(1)
+
+        expect(output).to start_with(expected_start_of_output)
+        expect(output).to include("Top 10 slowest examples").exactly(1).times
+        expect(output).to include("slowest example groups").exactly(1).times
+        expect(output).to end_with(expected_end_of_output)
+      end
+    end
+
+    context "pending exceptions", :aggregate_failures do
+      let(:fixture) { "./fixtures/rspec/pending_exceptions_spec.rb" }
+
+      it "reports" do
+        expect($?.exitstatus).to eql(0)
+
+        [
+          "is implemented but skipped with 'pending' (PENDING: TODO: skipped with 'pending')",
+          "is implemented but skipped with 'skip' (PENDING: TODO: skipped with 'skip')",
+          "is implemented but skipped with 'xit' (PENDING: Temporarily skipped with xit)",
+          "Top 10 slowest examples",
+          "slowest example groups",
+          "Pending: (Failures listed here are expected and do not affect your suite's status)",
+        ].each do |part|
+          expect(output).to include(part).exactly(1).times
+        end
+
+        expect(output).to end_with("3 examples, 0 failures, 3 pending")
+      end
+    end
+  end
+
   context "when the 'seed' parameter was used" do
     let(:seed) { 1234 }
 
