@@ -20,6 +20,7 @@ module TurboTests
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
       seed = opts.fetch(:seed)
+      profile = opts.fetch(:profile)
       seed_used = !seed.nil?
 
       if verbose
@@ -29,15 +30,16 @@ module TurboTests
       reporter = Reporter.from_config(formatters, start_time, seed, seed_used)
 
       new(
-        reporter: reporter,
-        files: files,
-        tags: tags,
-        runtime_log: runtime_log,
-        verbose: verbose,
-        fail_fast: fail_fast,
-        count: count,
-        seed: seed,
-        seed_used: seed_used,
+        reporter:,
+        files:,
+        tags:,
+        runtime_log:,
+        verbose:,
+        fail_fast:,
+        count:,
+        seed:,
+        seed_used:,
+        profile:
       ).run
     end
 
@@ -50,6 +52,7 @@ module TurboTests
       @fail_fast = opts[:fail_fast]
       @count = opts[:count]
       @seed = opts[:seed]
+      @profile = opts[:profile]
       @seed_used = opts[:seed_used]
 
       @load_time = 0
@@ -164,10 +167,19 @@ module TurboTests
           []
         end
 
+        profile_option = if @profile
+          [
+            "--profile", @profile.to_s,
+          ]
+        else
+          []
+        end
+
         command = [
           *command_name,
           *extra_args,
           *seed_option,
+          *profile_option,
           "--format", "TurboTests::JsonRowsFormatter",
           *record_runtime_options,
           *tests,
