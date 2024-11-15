@@ -29,7 +29,7 @@ module TurboTests
         warn "VERBOSE"
       end
 
-      reporter = Reporter.from_config(formatters, start_time, seed, seed_used)
+      reporter = Reporter.from_config(formatters, start_time, seed, seed_used, profile)
 
       new(
         reporter:,

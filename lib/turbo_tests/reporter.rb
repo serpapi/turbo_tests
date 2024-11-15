@@ -4,8 +4,8 @@ module TurboTests
   class Reporter
     attr_writer :load_time
 
-    def self.from_config(formatter_config, start_time, seed, seed_used)
-      reporter = new(start_time, seed, seed_used)
+    def self.from_config(formatter_config, start_time, seed, seed_used, profile)
+      reporter = new(start_time, seed, seed_used, profile)
 
       formatter_config.each do |config|
         name, outputs = config.values_at(:name, :outputs)
@@ -23,10 +23,11 @@ module TurboTests
     attr_reader :pending_examples
     attr_reader :failed_examples
 
-    def initialize(start_time, seed, seed_used)
+    def initialize(start_time, seed, seed_used, profile)
       @formatters = []
       @pending_examples = []
       @failed_examples = []
+      @profile = profile
       @all_examples = []
       @all_profile_examples = []
       @all_profile_groups = {}
@@ -173,7 +174,7 @@ module TurboTests
               execution_result: JsonRowsFormatter::ExampleExecutionResult.new(**e[:execution_result])
             ) 
           end,
-          @all_profile_examples.count,
+          @profile,
           @all_profile_groups
         )) if @all_profile_examples.any?
       delegate_to_formatters(:seed,
