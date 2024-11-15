@@ -18,7 +18,7 @@ RSpec.describe TurboTests::CLI do
       end
     end
 
-    context "reports the combined total of profile" do
+    context "reports the combined total of profile, but only shows max --profile" do
       subject(:output) { `bundle exec turbo_tests  #{fixture} --profile #{profile}`.strip }
 
       let(:fixture) { "./fixtures/rspec/6_tests_spec.rb ./fixtures/rspec/another_6_tests_spec.rb" }
@@ -30,7 +30,7 @@ RSpec.describe TurboTests::CLI do
 
         [
           "12 examples, 0 failures",
-          "Top 12 slowest examples",
+          "Top #{profile} slowest examples",
           "Top 2 slowest example groups",
         ].each do |part|
           expect(output).to include(part).exactly(1).times
