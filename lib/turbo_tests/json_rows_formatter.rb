@@ -122,13 +122,16 @@ module TurboTests
       end
     end
 
+    ExampleExecutionResult = Struct.new(:example_skipped?, :pending_message, :status, :pending_fixed?, :exception, :run_time)
+
     def execution_result_to_json(result)
       {
         example_skipped?: result.example_skipped?,
         pending_message: result.pending_message,
         status: result.status,
         pending_fixed?: result.pending_fixed?,
-        exception: exception_to_json(result.exception || result.pending_exception)
+        exception: exception_to_json(result.exception || result.pending_exception),
+        run_time: result.run_time
       }
     end
 
@@ -138,6 +141,8 @@ module TurboTests
         inclusion_location: frame.inclusion_location
       }
     end
+    
+    Example = Struct.new(:execution_result, :location, :description, :full_description, :metadata, :location_rerun_argument)
 
     def example_to_json(example)
       {
@@ -166,10 +171,11 @@ module TurboTests
     def dump_profile_to_json(notification)
       {
         duration: notification.duration,
-        examples: notification.examples,
-        # example_groups: notification.example_groups
+        examples: notification.examples.map { |example| example_to_json(example) },
       }
     end
+
+    Group = Struct.new(:description, :location, :total_time, :count, :average)
 
     def group_to_json(notification)
       {

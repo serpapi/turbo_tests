@@ -29,7 +29,7 @@ module TurboTests
       @failed_examples = []
       @all_examples = []
       @all_profile_examples = []
-      @all_profile_groups = []
+      @all_profile_groups = {}
       @profile_time = 0
       @messages = []
       @start_time = start_time
@@ -118,9 +118,16 @@ module TurboTests
     end
 
     def dump_profile(profile)
-      @all_profile_examples += profile[:examples] || []
-      @all_profile_groups += profile[:groups] || []
-      @profile_time += profile[:duration] || 0
+      group = JsonRowsFormatter::Group.new(
+        # TODO: this isnt the most accurate
+        location:  profile[:examples].reduce("") { |acc, e| "#{acc}#{e[:location]}, " }.chomp(", "),
+        description: profile[:examples].reduce("") { |acc, e| "#{acc}#{e[:description]}, " }.chomp(", "),
+        count: profile[:examples].count,
+        total_time: profile[:examples].sum { |e| e[:execution_result][:run_time] },
+      )
+      @all_profile_groups[group] = group
+      @all_profile_examples += profile[:examples]
+      @profile_time += profile[:duration]
     end
 
     def message(message)
@@ -160,7 +167,12 @@ module TurboTests
       delegate_to_formatters(:dump_profile,
         RSpec::Core::Notifications::ProfileNotification.new(
           @profile_time,
-          @all_profile_examples,
+          @all_profile_examples.map do |e| 
+            JsonRowsFormatter::Example.new(
+              **e, 
+              execution_result: JsonRowsFormatter::ExampleExecutionResult.new(**e[:execution_result])
+            ) 
+          end,
           @all_profile_examples.count,
           @all_profile_groups
         )) if @all_profile_examples.any?
