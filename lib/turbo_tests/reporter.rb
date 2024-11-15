@@ -28,6 +28,9 @@ module TurboTests
       @pending_examples = []
       @failed_examples = []
       @all_examples = []
+      @all_profile_examples = []
+      @all_profile_groups = []
+      @profile_time = 0
       @messages = []
       @start_time = start_time
       @seed = seed
@@ -112,6 +115,12 @@ module TurboTests
       @failed_examples << example
     end
 
+    def dump_profile(profile)
+      @all_profile_examples += profile[:examples] || []
+      @all_profile_groups += profile[:groups] || []
+      @profile_time += profile[:duration] || 0
+    end
+
     def message(message)
       delegate_to_formatters(:message, RSpec::Core::Notifications::MessageNotification.new(message))
       @messages << message
@@ -146,6 +155,13 @@ module TurboTests
           @load_time,
           @errors_outside_of_examples_count
         ))
+      delegate_to_formatters(:dump_profile,
+        RSpec::Core::Notifications::ProfileNotification.new(
+          @profile_time,
+          @all_profile_examples,
+          @all_profile_examples.count,
+          @all_profile_groups
+        )) if @all_profile_examples.any?
       delegate_to_formatters(:seed,
         RSpec::Core::Notifications::SeedNotification.new(
           @seed,

@@ -243,10 +243,13 @@ module TurboTests
 
     def handle_messages
       exited = 0
-
+      
       loop do
         message = @messages.pop
         case message[:type]
+        when "dump_profile"
+          message.inspect
+          @reporter.dump_profile(message[:dump_profile])
         when "example_passed"
           example = FakeExample.from_obj(message[:example])
           @reporter.example_passed(example)

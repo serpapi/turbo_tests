@@ -25,6 +25,7 @@ module TurboTests
       :start,
       :close,
       :example_failed,
+      :dump_profile,
       :example_passed,
       :example_pending,
       :example_group_started,
@@ -43,6 +44,13 @@ module TurboTests
       output_row(
         type: :load_summary,
         summary: load_summary_to_json(notification)
+      )
+    end
+
+    def dump_profile(notification)
+      output_row(
+        type: :dump_profile,
+        dump_profile: dump_profile_to_json(notification)
       )
     end
 
@@ -152,6 +160,14 @@ module TurboTests
       {
         count: notification.count,
         load_time: notification.load_time,
+      }
+    end
+
+    def dump_profile_to_json(notification)
+      {
+        duration: notification.duration,
+        examples: notification.examples,
+        # example_groups: notification.example_groups
       }
     end
 
