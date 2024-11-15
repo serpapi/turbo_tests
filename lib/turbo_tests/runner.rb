@@ -250,7 +250,6 @@ module TurboTests
         message = @messages.pop
         case message[:type]
         when "dump_profile"
-          message.inspect
           @reporter.dump_profile(message[:dump_profile])
         when "example_passed"
           example = FakeExample.from_obj(message[:example])
