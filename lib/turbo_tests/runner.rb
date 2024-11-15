@@ -23,6 +23,8 @@ module TurboTests
       profile = opts.fetch(:profile)
       seed_used = !seed.nil?
 
+      formatters << { name: "profile", outputs: ["-"] } unless profile.nil?
+
       if verbose
         warn "VERBOSE"
       end

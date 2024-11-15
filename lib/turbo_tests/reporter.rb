@@ -47,6 +47,8 @@ module TurboTests
             RSpec::Core::Formatters::ProgressFormatter
           when "d", "documentation"
             RSpec::Core::Formatters::DocumentationFormatter
+          when "profile"
+            RSpec::Core::Formatters::ProfileFormatter
           else
             Kernel.const_get(name)
           end
