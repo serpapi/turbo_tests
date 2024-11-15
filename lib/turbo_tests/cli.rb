@@ -83,7 +83,7 @@ module TurboTests
           seed = s
         end
 
-        opts.on("--profile N", "Slowest N tests per thread") do |n|
+        opts.on("--profile N", "Slowest N tests") do |n|
           n = begin
             Integer(n)
           rescue
