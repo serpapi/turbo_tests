@@ -119,7 +119,6 @@ module TurboTests
     end
 
     def dump_profile(profile)
-      pp  profile[:examples]
       group = JsonRowsFormatter::Group.new(
         # TODO: this isnt correct, but we cant seem to access the existing group info as its private 
         location:  profile[:examples].map { |e| e[:location].split(":").first }.uniq.join(", "),
