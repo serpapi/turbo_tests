@@ -22,6 +22,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rspec", ">= 3.10"
   spec.add_dependency "parallel_tests", ">= 3.3.0", "< 5"
 
+  spec.add_development_dependency("appraisal", "~> 2.5")
   spec.add_development_dependency "pry", "~> 0.14"
 
   # Specify which files should be added to the gem when it is released.
