@@ -17,6 +17,7 @@ module TurboTests
       verbose = false
       fail_fast = nil
       seed = nil
+      create = false
 
       OptionParser.new do |opts|
         opts.banner = <<~BANNER
@@ -85,7 +86,15 @@ module TurboTests
         opts.on("--seed SEED", "Seed for rspec") do |s|
           seed = s
         end
+
+        opts.on("--create", "Create databases") do
+          create = true
+        end
       end.parse!(@argv)
+
+      if create
+        return TurboTests::Runner.create(count)
+      end
 
       requires.each { |f| require(f) }
 
