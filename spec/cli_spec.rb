@@ -123,11 +123,11 @@ An error occurred while loading #{fixture}.
 
       [
         /undefined method [`']\[\]' for nil/,
-        'it("fails") { expect(nil[:key]).to(eql("value")) }',
-        /# #{fixture}:2:in [`']block \(2 levels\) in <top \(required\)>'/,
-        "1 example, 1 failure",
+        /it\("fails"\) \{ expect\(nil\[:key\]\).to\(eql\("value"\)\) \}/,
+        /# #{Regexp.escape(fixture)}:2:in [`']block \(2 levels\) in <top \(required\)>'/,
+        /1 example, 1 failure/,
       ].each do |part|
-        expect(output).to include(part)
+        expect(output).to match(part)
       end
     end
   end

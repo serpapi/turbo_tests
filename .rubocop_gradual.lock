@@ -25,16 +25,16 @@
   "lib/turbo_tests/reporter.rb:1386902608": [
     [7, 5, 400, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 2092085575]
   ],
-  "lib/turbo_tests/runner.rb:3148178217": [
+  "lib/turbo_tests/runner.rb:2204434148": [
     [13, 5, 271, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 21989008],
-    [20, 5, 798, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 2396047272],
-    [198, 11, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [216, 47, 6, "Style/GlobalStdStream: Use `$stderr` instead of `STDERR`.", 3356712163],
-    [218, 21, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [227, 7, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [287, 9, 6, "Style/GlobalStdStream: Use `$stdout` instead of `STDOUT`.", 3356722952]
+    [20, 5, 917, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 1582439743],
+    [203, 11, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [221, 47, 6, "Style/GlobalStdStream: Use `$stderr` instead of `STDERR`.", 3356712163],
+    [223, 21, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [232, 7, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [292, 9, 6, "Style/GlobalStdStream: Use `$stdout` instead of `STDOUT`.", 3356722952]
   ],
-  "spec/cli_spec.rb:43879232": [
+  "spec/cli_spec.rb:3990998076": [
     [1, 1, 30, "RSpec/SpecFilePathFormat: Spec path should end with `turbo_tests/cli*_spec.rb`.", 965721356],
     [11, 13, 28, "RSpec/ContextWording: Context description should match /^when\\b/, /^with\\b/, or /^without\\b/.", 2146945865],
     [30, 7, 12, "RSpec/MultipleExpectations: Example has too many expectations [3/1].", 2388739333],
@@ -51,7 +51,7 @@
     [111, 5, 32, "RSpec/MultipleExpectations: Example has too many expectations [2/1].", 281328851],
     [112, 32, 3, "RSpec/BeEql: Prefer `be` over `eql`.", 193405885],
     [121, 5, 38, "RSpec/MultipleExpectations: Example has too many expectations [2/1].", 3463001811],
-    [121, 5, 384, "RSpec/ExampleLength: Example has too many lines. [9/5]", 4122755410],
+    [121, 5, 409, "RSpec/ExampleLength: Example has too many lines. [9/5]", 4122755410],
     [122, 32, 3, "RSpec/BeEql: Prefer `be` over `eql`.", 193405885]
   ],
   "spec/doc_formatter_spec.rb:233381593": [

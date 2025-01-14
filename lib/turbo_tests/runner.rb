@@ -27,7 +27,7 @@ module TurboTests
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
-      seed = opts.fetch(:seed, nil) || rand(0xFFFF).to_s
+      seed = opts.fetch(:seed, nil)
       seed_used = !seed.nil?
       print_failed_group = opts.fetch(:print_failed_group, false)
 
@@ -45,7 +45,7 @@ module TurboTests
         count: count,
         seed: seed,
         seed_used: seed_used,
-        print_failed_group: print_failed_group
+        print_failed_group: print_failed_group,
       ).run
     end
 
@@ -98,8 +98,6 @@ module TurboTests
       subprocess_opts = {
         record_runtime: use_runtime_info,
       }
-
-      @reporter.seed_notification(@seed, @seed_used)
 
       @reporter.report(tests_in_groups) do |_reporter|
         wait_threads = tests_in_groups.map.with_index do |tests, process_id|
