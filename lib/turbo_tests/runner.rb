@@ -31,6 +31,7 @@ module TurboTests
       seed = opts.fetch(:seed, nil)
       seed_used = !seed.nil?
       print_failed_group = opts.fetch(:print_failed_group, false)
+      nice = opts.fetch(:nice, false)
 
       use_runtime_info = files == ["spec"]
 
@@ -57,6 +58,7 @@ module TurboTests
         print_failed_group: print_failed_group,
         use_runtime_info: use_runtime_info,
         parallel_options: parallel_options,
+        nice: nice,
       ).run
     end
 
@@ -69,6 +71,7 @@ module TurboTests
       @count = opts[:count]
       @seed = opts[:seed]
       @seed_used = opts[:seed_used]
+      @nice = opts[:nice]
       @use_runtime_info = opts[:use_runtime_info]
 
       @load_time = 0
@@ -194,6 +197,8 @@ module TurboTests
           *record_runtime_options,
           *tests,
         ]
+        command.unshift(ENV["BUNDLE_BIN_PATH"], "exec") if ENV["BUNDLE_BIN_PATH"]
+        command.unshift("nice") if @nice
 
         if @verbose
           command_str = [
