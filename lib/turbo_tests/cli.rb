@@ -17,6 +17,7 @@ module TurboTests
       verbose = false
       fail_fast = nil
       seed = nil
+      print_failed_group = false
       create = false
 
       OptionParser.new do |opts|
@@ -90,6 +91,10 @@ module TurboTests
         opts.on("--create", "Create databases") do
           create = true
         end
+
+        opts.on("--print_failed_group", "Prints group that had failures in it") do
+          print_failed_group = true
+        end
       end.parse!(@argv)
 
       if create
@@ -118,6 +123,7 @@ module TurboTests
         fail_fast: fail_fast,
         count: count,
         seed: seed,
+        print_failed_group: print_failed_group,
       )
 
       # From https://github.com/serpapi/turbo_tests/pull/20/
