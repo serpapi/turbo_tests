@@ -25,13 +25,14 @@
   "lib/turbo_tests/reporter.rb:1386902608": [
     [7, 5, 400, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 2092085575]
   ],
-  "lib/turbo_tests/runner.rb:816710941": [
-    [12, 5, 798, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 2396047272],
-    [190, 11, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [208, 47, 6, "Style/GlobalStdStream: Use `$stderr` instead of `STDERR`.", 3356712163],
-    [210, 21, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [219, 7, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
-    [279, 9, 6, "Style/GlobalStdStream: Use `$stdout` instead of `STDOUT`.", 3356722952]
+  "lib/turbo_tests/runner.rb:3148178217": [
+    [13, 5, 271, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 21989008],
+    [20, 5, 798, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 2396047272],
+    [198, 11, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [216, 47, 6, "Style/GlobalStdStream: Use `$stderr` instead of `STDERR`.", 3356712163],
+    [218, 21, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [227, 7, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [287, 9, 6, "Style/GlobalStdStream: Use `$stdout` instead of `STDOUT`.", 3356722952]
   ],
   "spec/cli_spec.rb:43879232": [
     [1, 1, 30, "RSpec/SpecFilePathFormat: Spec path should end with `turbo_tests/cli*_spec.rb`.", 965721356],
@@ -55,6 +56,10 @@
   ],
   "spec/doc_formatter_spec.rb:233381593": [
     [5, 16, 19, "RSpec/DescribeClass: The first argument to describe should be the class or module being tested.", 879596202]
+  ],
+  "spec/turbo_tests_spec.rb:811756577": [
+    [10, 15, 7, "RSpec/MessageSpies: Prefer `have_received` for setting message expectations. Setup `ParallelTests::Tasks` as a spy using `allow` or `instance_spy`.", 1384559950],
+    [20, 15, 7, "RSpec/MessageSpies: Prefer `have_received` for setting message expectations. Setup `ParallelTests::Tasks` as a spy using `allow` or `instance_spy`.", 1384559950]
   ],
   "turbo_tests.gemspec:2105011563": [
     [30, 16, 36, "ThreadSafety/DirChdir: Avoid using `Dir.chdir` due to its process-wide effect.", 3576345059],
