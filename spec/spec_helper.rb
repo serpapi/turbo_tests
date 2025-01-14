@@ -1,4 +1,3 @@
-require "bundler/setup"
 require "turbo_tests"
 
 RSpec.configure do |config|

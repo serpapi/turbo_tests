@@ -1,0 +1,40 @@
+# NOTE: There are two identical copies of this file to make this hack work.
+#
+# Solution is based on this comment:
+#   https://github.com/thoughtbot/appraisal/issues/154#issuecomment-493804217
+# (and fixed to work in 2025)
+# NOTE: We have two copies of this file due to the inability to specify a reliable path,
+#       that works across varying invocations as indicated in that same comment.
+# See: https://github.com/thoughtbot/appraisal/issues/154#issuecomment-2571386411
+
+require "appraisal/bundler_dsl"
+
+if Appraisal::BundlerDSL::PARTS.include?("eval_gemfile")
+  # When the hack is already active, this code path is run within appraisal,
+  #   so we can't really tell the difference between already hacked,
+  #   and new version of appraisal has added the feature
+else
+  require "appraisal/appraisal"
+
+  Appraisal::Appraisal.class_eval do
+    def eval_gemfile(*args)
+      gemfile.eval_gemfile(*args)
+    end
+  end
+
+  Appraisal::BundlerDSL.class_eval do
+    def eval_gemfile(path, contents = nil)
+      (@eval_gemfile ||= []) << [path, contents]
+    end
+
+    private
+
+    def eval_gemfile_entry
+      @eval_gemfile.map { |(p, c)| "eval_gemfile(#{p.inspect}#{", #{c.inspect}" if c})" } * "\n\n"
+    end
+
+    alias_method :eval_gemfile_entry_for_dup, :eval_gemfile_entry
+
+    self::PARTS << "eval_gemfile"
+  end
+end

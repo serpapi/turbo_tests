@@ -1,5 +1,5 @@
-RSpec.describe "Failing example group" do
-  after(:each) do |example|
+RSpec.describe("Failing example group") do
+  after do |example|
     example.metadata[:extra_failure_lines] ||= []
 
     lines = example.metadata[:extra_failure_lines]
@@ -8,6 +8,6 @@ RSpec.describe "Failing example group" do
   end
 
   it "fails" do
-    expect(2).to eq(3)
+    expect(2).to(eq(3))
   end
 end

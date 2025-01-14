@@ -18,7 +18,7 @@ module TurboTests
       fail_fast = nil
       seed = nil
 
-      OptionParser.new { |opts|
+      OptionParser.new do |opts|
         opts.banner = <<~BANNER
           Run all tests in parallel, giving each process ENV['TEST_ENV_NUMBER'] ('1', '2', '3', ...).
 
@@ -40,10 +40,14 @@ module TurboTests
           requires << filename
         end
 
-        opts.on("-f", "--format FORMATTER", "Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress") do |name|
+        opts.on(
+          "-f",
+          "--format FORMATTER",
+          "Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress",
+        ) do |name|
           formatters << {
             name: name,
-            outputs: []
+            outputs: [],
           }
         end
 
@@ -55,7 +59,7 @@ module TurboTests
           if formatters.empty?
             formatters << {
               name: "progress",
-              outputs: []
+              outputs: [],
             }
           end
           formatters.last[:outputs] << filename
@@ -72,30 +76,28 @@ module TurboTests
         opts.on("--fail-fast=[N]") do |n|
           n = begin
             Integer(n)
-          rescue
+          rescue StandardError
             nil
           end
-          fail_fast = n.nil? || n < 1 ? 1 : n
+          fail_fast = (n.nil? || n < 1) ? 1 : n
         end
 
         opts.on("--seed SEED", "Seed for rspec") do |s|
           seed = s
         end
-      }.parse!(@argv)
+      end.parse!(@argv)
 
       requires.each { |f| require(f) }
 
       if formatters.empty?
         formatters << {
           name: "progress",
-          outputs: []
+          outputs: [],
         }
       end
 
       formatters.each do |formatter|
-        if formatter[:outputs].empty?
-          formatter[:outputs] << "-"
-        end
+        formatter[:outputs] << "-" if formatter[:outputs].empty?
       end
 
       exitstatus = TurboTests::Runner.run(
@@ -106,11 +108,11 @@ module TurboTests
         verbose: verbose,
         fail_fast: fail_fast,
         count: count,
-        seed: seed
+        seed: seed,
       )
 
       # From https://github.com/serpapi/turbo_tests/pull/20/
-      exit exitstatus
+      exit(exitstatus)
     end
   end
 end

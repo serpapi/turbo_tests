@@ -2,6 +2,8 @@ name: Tests
 
 on:
   pull_request:
+    branches:
+      - '!*' # Ignore this workflow; Remove workflow once done pulling in upstream PRs
 
 permissions:
   contents: read

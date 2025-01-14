@@ -22,9 +22,7 @@ module TurboTests
       seed = opts.fetch(:seed)
       seed_used = !seed.nil?
 
-      if verbose
-        warn "VERBOSE"
-      end
+      warn("VERBOSE") if verbose
 
       reporter = Reporter.from_config(formatters, start_time, seed, seed_used)
 
@@ -64,7 +62,7 @@ module TurboTests
     def run
       @num_processes = [
         ParallelTests.determine_number_of_processes(@count),
-        ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size
+        ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size,
       ].min
 
       use_runtime_info = @files == ["spec"]
@@ -81,7 +79,7 @@ module TurboTests
         ParallelTests::RSpec::Runner.tests_in_groups(
           @files,
           @num_processes,
-          **group_opts
+          **group_opts,
         )
 
       setup_tmp_dir
@@ -90,7 +88,7 @@ module TurboTests
         record_runtime: use_runtime_info,
       }
 
-      @reporter.report(tests_in_groups) do |reporter|
+      @reporter.report(tests_in_groups) do |_reporter|
         wait_threads = tests_in_groups.map.with_index do |tests, process_id|
           start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
         end
@@ -125,7 +123,7 @@ module TurboTests
         @tags.map { |tag| "--tag=#{tag}" },
         tests,
         process_id,
-        **opts
+        **opts,
       )
     end
 
@@ -140,17 +138,19 @@ module TurboTests
         env["RUBYOPT"] = ["-I#{File.expand_path("..", __dir__)}", ENV["RUBYOPT"]].compact.join(" ")
         env["RSPEC_SILENCE_FILTER_ANNOUNCEMENTS"] = "1"
 
-        if ENV["BUNDLE_BIN_PATH"]
-          command_name = [ENV["BUNDLE_BIN_PATH"], "exec", "rspec"]
+        command_name = if ENV["BUNDLE_BIN_PATH"]
+          [ENV["BUNDLE_BIN_PATH"], "exec", "rspec"]
         else
-          command_name = "rspec"
+          "rspec"
         end
 
         record_runtime_options =
           if record_runtime
             [
-              "--format", "ParallelTests::RSpec::RuntimeLogger",
-              "--out", @runtime_log,
+              "--format",
+              "ParallelTests::RSpec::RuntimeLogger",
+              "--out",
+              @runtime_log,
             ]
           else
             []
@@ -168,7 +168,8 @@ module TurboTests
           *command_name,
           *extra_args,
           *seed_option,
-          "--format", "TurboTests::JsonRowsFormatter",
+          "--format",
+          "TurboTests::JsonRowsFormatter",
           *record_runtime_options,
           *tests,
         ]
@@ -179,7 +180,7 @@ module TurboTests
             command.join(" "),
           ].select { |x| x.size > 0 }.join(" ")
 
-          warn "Process #{process_id}: #{command_str}"
+          warn("Process #{process_id}: #{command_str}")
         end
 
         stdin, stdout, stderr, wait_thr = Open3.popen3(env, *command)
@@ -201,15 +202,13 @@ module TurboTests
               @messages << message
             end
 
-            @messages << { type: "exit", process_id: process_id }
+            @messages << {type: "exit", process_id: process_id}
           end
 
         @threads << start_copy_thread(stderr, STDERR)
 
         @threads << Thread.new do
-          unless wait_thr.value.success?
-            @messages << { type: "error" }
-          end
+          @messages << {type: "error"} unless wait_thr.value.success?
         end
 
         wait_thr
@@ -272,11 +271,9 @@ module TurboTests
           nil
         when "exit"
           exited += 1
-          if exited == @num_processes
-            break
-          end
+          break if exited == @num_processes
         else
-          STDERR.puts("Unhandled message in main process: #{message}")
+          warn("Unhandled message in main process: #{message}")
         end
 
         STDOUT.flush

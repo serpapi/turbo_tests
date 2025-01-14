@@ -66,3 +66,7 @@ tags
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,vim
 
+# Appraisals Bundles (only commit the coverage, audit, and style lockfiles)
+gemfiles/ruby_*.gemfile.lock
+gemfiles/*_head.gemfile.lock
+Appraisal.root.gemfile.lock
