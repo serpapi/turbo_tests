@@ -21,4 +21,7 @@ eval_gemfile "gemfiles/modular/coverage.gemfile"
 # Linting
 eval_gemfile "gemfiles/modular/style.gemfile"
 
+# Documentation
+eval_gemfile "gemfiles/modular/documentation.gemfile"
+
 gem "appraisal", path: "/Users/pboling/src/forks/appraisal"
