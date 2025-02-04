@@ -87,6 +87,7 @@ module TurboTests
 
       @messages = Thread::Queue.new
       @threads = []
+      @wait_threads = []
       @error = false
       @print_failed_group = opts[:print_failed_group]
     end
@@ -114,26 +115,46 @@ module TurboTests
       }
 
       @reporter.report(tests_in_groups) do |_reporter|
-        wait_threads = tests_in_groups.map.with_index do |tests, process_id|
+        old_signal = Signal.trap(:INT) { handle_interrupt }
+
+        @wait_threads = tests_in_groups.map.with_index do |tests, process_id|
           start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
-        end
+        end.compact
+        @interrupt_handled = false
 
         handle_messages
 
         @threads.each(&:join)
 
-        report_failed_group(wait_threads, tests_in_groups) if @print_failed_group
+        report_failed_group(tests_in_groups) if @print_failed_group
 
-        if @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
+        Signal.trap(:INT, old_signal)
+
+        if @reporter.failed_examples.empty? && @wait_threads.map(&:value).all?(&:success?)
           0
         else
           # From https://github.com/serpapi/turbo_tests/pull/20/
-          wait_threads.map { |thread| thread.value.exitstatus }.max
+          @wait_threads.map { |thread| thread.value.exitstatus }.max
         end
       end
     end
 
     private
+
+    def handle_interrupt
+      if @interrupt_handled
+        Kernel.exit
+      else
+        puts "\nShutting down subprocesses..."
+        @wait_threads.each do |wait_thr|
+          child_pid = wait_thr.pid
+          pgid = Process.respond_to?(:getpgid) ? Process.getpgid(child_pid) : 0
+          Process.kill(:INT, child_pid) if Process.pid != pgid
+        rescue Errno::ESRCH, Errno::ENOENT
+        end
+        @interrupt_handled = true
+      end
+    end
 
     def setup_tmp_dir
       begin
@@ -160,6 +181,8 @@ module TurboTests
           type: "exit",
           process_id: process_id,
         }
+
+        nil
       else
         env["RSPEC_FORMATTER_OUTPUT_ID"] = SecureRandom.uuid
         env["RUBYOPT"] = ["-I#{File.expand_path("..", __dir__)}", ENV["RUBYOPT"]].compact.join(" ")
@@ -222,13 +245,14 @@ module TurboTests
             stdout.each_line do |line|
               result = line.split(env["RSPEC_FORMATTER_OUTPUT_ID"])
 
-              output = result.shift
-              print(output) unless output.empty?
+              initial = result.shift
+              print(initial) unless initial.empty?
 
               message = result.shift
               next unless message
 
               message = JSON.parse(message, symbolize_names: true)
+
               message[:process_id] = process_id
               @messages << message
             end
@@ -316,8 +340,8 @@ module TurboTests
       !@fail_fast.nil? && @failure_count >= @fail_fast
     end
 
-    def report_failed_group(wait_threads, tests_in_groups)
-      wait_threads.map(&:value).each_with_index do |value, index|
+    def report_failed_group(tests_in_groups)
+      @wait_threads.map(&:value).each_with_index do |value, index|
         next if value.success?
 
         failing_group = tests_in_groups[index].join(" ")

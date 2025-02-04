@@ -1,8 +1,0 @@
-git_source(:github) { |repo_name| "https://github.com/#{repo_name}" }
-
-source "https://rubygems.org"
-
-# Appraisal Boot Gemfile is for installing appraisal only (not running it).
-# We do not load the standard Gemfile, as it is tailored for local development.
-
-gemspec
