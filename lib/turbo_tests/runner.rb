@@ -189,11 +189,14 @@ module TurboTests
         env["RUBYOPT"] = ["-I#{File.expand_path("..", __dir__)}", ENV["RUBYOPT"]].compact.join(" ")
         env["RSPEC_SILENCE_FILTER_ANNOUNCEMENTS"] = "1"
 
-        command_name = if ENV["BUNDLE_BIN_PATH"]
-          [ENV["BUNDLE_BIN_PATH"], "exec", "rspec"]
-        else
-          "rspec"
-        end
+        command_name =
+          if ENV["RSPEC_EXECUTABLE"]
+            ENV["RSPEC_EXECUTABLE"].split
+          elsif ENV["BUNDLE_BIN_PATH"]
+            [ENV["BUNDLE_BIN_PATH"], "exec", "rspec"]
+          else
+            "rspec"
+          end
 
         record_runtime_options =
           if record_runtime
