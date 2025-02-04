@@ -245,8 +245,8 @@ module TurboTests
             stdout.each_line do |line|
               result = line.split(env["RSPEC_FORMATTER_OUTPUT_ID"])
 
-              output = result.shift
-              print(output) unless output.empty?
+              initial = result.shift
+              print(initial) unless initial.empty?
 
               message = result.shift
               next unless message

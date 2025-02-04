@@ -7,6 +7,4 @@ gem "stringio", "~> 3.0"
 
 gemspec path: "../"
 
-eval_gemfile("appraisal-hack.gemfile")
-
 eval_gemfile("modular/audit.gemfile")

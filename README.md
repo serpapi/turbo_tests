@@ -127,6 +127,13 @@ From time to time the appraisal gemfiles in `gemfiles/` will need to be updated.
 They are created and updated with the command:
 
 ```shell
+BUNDLE_GEMFILE=Appraisal.root.gemfile bundle install
+BUNDLE_GEMFILE=Appraisal.root.gemfile bundle exec appraisal update
+```
+
+NOTE: Once `eval_gemfile` support is [merged into appraisal](https://github.com/thoughtbot/appraisal/pull/248) the above commands will be simplified to:
+
+```shell
 BUNDLE_GEMFILE=Appraisal.root.gemfile appraisal update
 ```
 
