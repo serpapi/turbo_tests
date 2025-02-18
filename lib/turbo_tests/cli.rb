@@ -17,8 +17,11 @@ module TurboTests
       verbose = false
       fail_fast = nil
       seed = nil
+      print_failed_group = false
+      create = false
+      nice = false
 
-      OptionParser.new { |opts|
+      OptionParser.new do |opts|
         opts.banner = <<~BANNER
           Run all tests in parallel, giving each process ENV['TEST_ENV_NUMBER'] ('1', '2', '3', ...).
 
@@ -40,10 +43,14 @@ module TurboTests
           requires << filename
         end
 
-        opts.on("-f", "--format FORMATTER", "Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress") do |name|
+        opts.on(
+          "-f",
+          "--format FORMATTER",
+          "Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress",
+        ) do |name|
           formatters << {
             name: name,
-            outputs: []
+            outputs: [],
           }
         end
 
@@ -55,7 +62,7 @@ module TurboTests
           if formatters.empty?
             formatters << {
               name: "progress",
-              outputs: []
+              outputs: [],
             }
           end
           formatters.last[:outputs] << filename
@@ -72,45 +79,65 @@ module TurboTests
         opts.on("--fail-fast=[N]") do |n|
           n = begin
             Integer(n)
-          rescue
+          rescue StandardError
             nil
           end
-          fail_fast = n.nil? || n < 1 ? 1 : n
+          fail_fast = (n.nil? || n < 1) ? 1 : n
         end
 
         opts.on("--seed SEED", "Seed for rspec") do |s|
           seed = s
         end
-      }.parse!(@argv)
+
+        opts.on("--create", "Create databases") do
+          create = true
+        end
+
+        opts.on("--print_failed_group", "Prints group that had failures in it") do
+          print_failed_group = true
+        end
+
+        opts.on("--nice", "execute test commands with low priority") do
+          nice = true
+        end
+      end.parse!(@argv)
+
+      if create
+        return TurboTests::Runner.create(count)
+      end
 
       requires.each { |f| require(f) }
 
       if formatters.empty?
         formatters << {
           name: "progress",
-          outputs: []
+          outputs: [],
         }
       end
 
       formatters.each do |formatter|
-        if formatter[:outputs].empty?
-          formatter[:outputs] << "-"
-        end
+        formatter[:outputs] << "-" if formatter[:outputs].empty?
       end
+
+      parallel_options = ParallelTests::CLI.new.send(:parse_options!, @argv.unshift("--type", "rspec"))
+      files = parallel_options.fetch(:files, ["spec"])
 
       exitstatus = TurboTests::Runner.run(
         formatters: formatters,
         tags: tags,
-        files: @argv.empty? ? ["spec"] : @argv,
+        files: files,
         runtime_log: runtime_log,
         verbose: verbose,
         fail_fast: fail_fast,
         count: count,
-        seed: seed
+        seed: seed,
+        nice: nice,
+        print_failed_group: print_failed_group,
+        parallel_options: parallel_options,
       )
 
       # From https://github.com/serpapi/turbo_tests/pull/20/
-      exit exitstatus
+      exit(exitstatus)
     end
   end
 end

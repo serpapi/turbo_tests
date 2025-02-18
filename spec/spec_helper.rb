@@ -1,5 +1,6 @@
-require "bundler/setup"
 require "turbo_tests"
+
+require "parallel_tests/tasks"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

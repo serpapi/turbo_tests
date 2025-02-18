@@ -2,6 +2,8 @@ name: Tests
 
 on:
   pull_request:
+    branches:
+      - '!*' # Ignore this workflow; Remove workflow once done pulling in upstream PRs
 
 permissions:
   contents: read
@@ -17,7 +19,7 @@ jobs:
         os: [ ubuntu-latest, windows-latest ]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{matrix.ruby}}

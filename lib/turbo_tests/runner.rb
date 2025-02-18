@@ -9,27 +9,49 @@ module TurboTests
   class Runner
     using CoreExtensions
 
+    def self.create(count)
+      # We are unable to load parallel tests' tasks in the normal way (top of file)
+      # because it requires that the Rails.application instance already be configured
+      require "parallel_tests/tasks"
+
+      ENV["PARALLEL_TEST_FIRST_IS_1"] = "true"
+      command = ["bundle", "exec", "rake", "db:create", "RAILS_ENV=#{ParallelTests::Tasks.rails_env}"]
+      args = {count: count.to_s}
+      ParallelTests::Tasks.run_in_parallel(command, args)
+    end
+
     def self.run(opts = {})
       files = opts[:files]
       formatters = opts[:formatters]
       tags = opts[:tags]
+      parallel_options = opts[:parallel_options] || {}
 
       start_time = opts.fetch(:start_time) { RSpec::Core::Time.now }
       runtime_log = opts.fetch(:runtime_log, nil)
       verbose = opts.fetch(:verbose, false)
       fail_fast = opts.fetch(:fail_fast, nil)
       count = opts.fetch(:count, nil)
-      seed = opts.fetch(:seed)
+      seed = opts.fetch(:seed, nil)
       seed_used = !seed.nil?
+      print_failed_group = opts.fetch(:print_failed_group, false)
+      nice = opts.fetch(:nice, false)
 
-      if verbose
-        warn "VERBOSE"
+      use_runtime_info = files == ["spec"]
+
+      if use_runtime_info
+        parallel_options[:runtime_log] = runtime_log
+      else
+        parallel_options[:group_by] = :filesize
       end
 
-      reporter = Reporter.from_config(formatters, start_time, seed, seed_used)
+      warn("VERBOSE") if verbose
+
+      reporter = Reporter.from_config(formatters, start_time, seed, seed_used, files, parallel_options)
 
       new(
         reporter: reporter,
+        formatters: formatters,
+        start_time: start_time,
         files: files,
         tags: tags,
         runtime_log: runtime_log,
@@ -38,85 +60,102 @@ module TurboTests
         count: count,
         seed: seed,
         seed_used: seed_used,
+        print_failed_group: print_failed_group,
+        use_runtime_info: use_runtime_info,
+        parallel_options: parallel_options,
+        nice: nice,
       ).run
     end
 
-    def initialize(opts)
+    def initialize(**opts)
+      @formatters = opts[:formatters]
       @reporter = opts[:reporter]
       @files = opts[:files]
       @tags = opts[:tags]
-      @runtime_log = opts[:runtime_log] || "tmp/turbo_rspec_runtime.log"
       @verbose = opts[:verbose]
       @fail_fast = opts[:fail_fast]
+      @start_time = opts[:start_time]
       @count = opts[:count]
       @seed = opts[:seed]
       @seed_used = opts[:seed_used]
+      @nice = opts[:nice]
+      @use_runtime_info = opts[:use_runtime_info]
 
       @load_time = 0
       @load_count = 0
       @failure_count = 0
 
+      # Supports runtime_log as a top level option,
+      #   but also nested inside parallel_options
+      @runtime_log = opts[:runtime_log] || "tmp/turbo_rspec_runtime.log"
+      @parallel_options = opts.fetch(:parallel_options, {})
+      @parallel_options[:runtime_log] ||= @runtime_log
+      @record_runtime = @parallel_options[:group_by] == :runtime
+
       @messages = Thread::Queue.new
       @threads = []
+      @wait_threads = []
       @error = false
+      @print_failed_group = opts[:print_failed_group]
     end
 
     def run
       @num_processes = [
         ParallelTests.determine_number_of_processes(@count),
-        ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size
+        ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size,
       ].min
-
-      use_runtime_info = @files == ["spec"]
-
-      group_opts = {}
-
-      if use_runtime_info
-        group_opts[:runtime_log] = @runtime_log
-      else
-        group_opts[:group_by] = :filesize
-      end
 
       tests_in_groups =
         ParallelTests::RSpec::Runner.tests_in_groups(
           @files,
           @num_processes,
-          **group_opts
+          **@parallel_options,
         )
 
-      setup_tmp_dir
-
       subprocess_opts = {
-        record_runtime: use_runtime_info,
+        record_runtime: @record_runtime,
       }
 
-      @reporter.report(tests_in_groups) do |reporter|
-        wait_threads = tests_in_groups.map.with_index do |tests, process_id|
+      @reporter.report(tests_in_groups) do |_reporter|
+        old_signal = Signal.trap(:INT) { handle_interrupt }
+
+        @wait_threads = tests_in_groups.map.with_index do |tests, process_id|
           start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
-        end
+        end.compact
+        @interrupt_handled = false
 
         handle_messages
 
         @threads.each(&:join)
 
-        if @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
+        report_failed_group(tests_in_groups) if @print_failed_group
+
+        Signal.trap(:INT, old_signal)
+
+        if @reporter.failed_examples.empty? && @wait_threads.map(&:value).all?(&:success?)
           0
         else
           # From https://github.com/serpapi/turbo_tests/pull/20/
-          wait_threads.map { |thread| thread.value.exitstatus }.max
+          @wait_threads.map { |thread| thread.value.exitstatus }.max
         end
       end
     end
 
     private
 
-    def setup_tmp_dir
-      begin
-        FileUtils.rm_r("tmp/test-pipes")
-      rescue Errno::ENOENT
+    def handle_interrupt
+      if @interrupt_handled
+        Kernel.exit
+      else
+        puts "\nShutting down subprocesses..."
+        @wait_threads.each do |wait_thr|
+          child_pid = wait_thr.pid
+          pgid = Process.respond_to?(:getpgid) ? Process.getpgid(child_pid) : 0
+          Process.kill(:INT, child_pid) if Process.pid != pgid
+        rescue Errno::ESRCH, Errno::ENOENT
+        end
+        @interrupt_handled = true
       end
-
-      FileUtils.mkdir_p("tmp/test-pipes/")
     end
 
     def start_regular_subprocess(tests, process_id, **opts)
@@ -125,7 +164,7 @@ module TurboTests
         @tags.map { |tag| "--tag=#{tag}" },
         tests,
         process_id,
-        **opts
+        **opts,
       )
     end
 
@@ -135,22 +174,29 @@ module TurboTests
           type: "exit",
           process_id: process_id,
         }
+
+        nil
       else
         env["RSPEC_FORMATTER_OUTPUT_ID"] = SecureRandom.uuid
         env["RUBYOPT"] = ["-I#{File.expand_path("..", __dir__)}", ENV["RUBYOPT"]].compact.join(" ")
         env["RSPEC_SILENCE_FILTER_ANNOUNCEMENTS"] = "1"
 
-        if ENV["BUNDLE_BIN_PATH"]
-          command_name = [ENV["BUNDLE_BIN_PATH"], "exec", "rspec"]
-        else
-          command_name = "rspec"
-        end
+        command_name =
+          if ENV["RSPEC_EXECUTABLE"]
+            ENV["RSPEC_EXECUTABLE"].split
+          elsif ENV["BUNDLE_BIN_PATH"]
+            [ENV["BUNDLE_BIN_PATH"], "exec", "rspec"]
+          else
+            "rspec"
+          end
 
         record_runtime_options =
           if record_runtime
             [
-              "--format", "ParallelTests::RSpec::RuntimeLogger",
-              "--out", @runtime_log,
+              "--format",
+              "ParallelTests::RSpec::RuntimeLogger",
+              "--out",
+              @runtime_log,
             ]
           else
             []
@@ -164,14 +210,19 @@ module TurboTests
           []
         end
 
+        spec_opts = ParallelTests::RSpec::Runner.send(:spec_opts)
+
         command = [
           *command_name,
           *extra_args,
           *seed_option,
-          "--format", "TurboTests::JsonRowsFormatter",
+          "--format",
+          "TurboTests::JsonRowsFormatter",
           *record_runtime_options,
+          *spec_opts,
           *tests,
         ]
+        command.unshift("nice") if @nice
 
         if @verbose
           command_str = [
@@ -179,7 +230,7 @@ module TurboTests
             command.join(" "),
           ].select { |x| x.size > 0 }.join(" ")
 
-          warn "Process #{process_id}: #{command_str}"
+          warn("Process #{process_id}: #{command_str}")
         end
 
         stdin, stdout, stderr, wait_thr = Open3.popen3(env, *command)
@@ -190,26 +241,25 @@ module TurboTests
             stdout.each_line do |line|
               result = line.split(env["RSPEC_FORMATTER_OUTPUT_ID"])
 
-              output = result.shift
-              print(output) unless output.empty?
+              initial = result.shift
+              print(initial) unless initial.empty?
 
               message = result.shift
               next unless message
 
               message = JSON.parse(message, symbolize_names: true)
+
               message[:process_id] = process_id
               @messages << message
             end
 
-            @messages << { type: "exit", process_id: process_id }
+            @messages << {type: "exit", process_id: process_id}
           end
 
         @threads << start_copy_thread(stderr, STDERR)
 
         @threads << Thread.new do
-          unless wait_thr.value.success?
-            @messages << { type: "error" }
-          end
+          @messages << {type: "error"} unless wait_thr.value.success?
         end
 
         wait_thr
@@ -272,11 +322,9 @@ module TurboTests
           nil
         when "exit"
           exited += 1
-          if exited == @num_processes
-            break
-          end
+          break if exited == @num_processes
         else
-          STDERR.puts("Unhandled message in main process: #{message}")
+          warn("Unhandled message in main process: #{message}")
         end
 
         STDOUT.flush
@@ -286,6 +334,15 @@ module TurboTests
 
     def fail_fast_met
       !@fail_fast.nil? && @failure_count >= @fail_fast
+    end
+
+    def report_failed_group(tests_in_groups)
+      @wait_threads.map(&:value).each_with_index do |value, index|
+        next if value.success?
+
+        failing_group = tests_in_groups[index].join(" ")
+        puts "Group that failed: #{failing_group}"
+      end
     end
   end
 end

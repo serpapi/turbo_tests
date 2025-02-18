@@ -21,24 +21,31 @@ module TurboTests
   FakeException = Struct.new(:backtrace, :message, :cause)
   class FakeException
     def self.from_obj(obj)
-      if obj
-        klass =
-          Class.new(FakeException) {
-            define_singleton_method(:name) do
-              obj[:class_name]
-            end
-          }
+      return unless obj
 
-        klass.new(
-          obj[:backtrace],
-          obj[:message],
-          FakeException.from_obj(obj[:cause])
-        )
-      end
+      klass =
+        Class.new(FakeException) do
+          define_singleton_method(:name) do
+            obj[:class_name]
+          end
+        end
+
+      klass.new(
+        obj[:backtrace],
+        obj[:message],
+        FakeException.from_obj(obj[:cause]),
+      )
     end
   end
 
-  FakeExecutionResult = Struct.new(:example_skipped?, :pending_message, :status, :pending_fixed?, :exception, :pending_exception)
+  FakeExecutionResult = Struct.new(
+    :example_skipped?,
+    :pending_message,
+    :status,
+    :pending_fixed?,
+    :exception,
+    :pending_exception,
+  )
   class FakeExecutionResult
     def self.from_obj(obj)
       new(
@@ -47,12 +54,19 @@ module TurboTests
         obj[:status].to_sym,
         obj[:pending_fixed?],
         FakeException.from_obj(obj[:exception]),
-        FakeException.from_obj(obj[:exception])
+        FakeException.from_obj(obj[:exception]),
       )
     end
   end
 
-  FakeExample = Struct.new(:execution_result, :location, :description, :full_description, :metadata, :location_rerun_argument)
+  FakeExample = Struct.new(
+    :execution_result,
+    :location,
+    :description,
+    :full_description,
+    :metadata,
+    :location_rerun_argument,
+  )
   class FakeExample
     def self.from_obj(obj)
       metadata = obj[:metadata]
@@ -60,7 +74,7 @@ module TurboTests
       metadata[:shared_group_inclusion_backtrace].map! do |frame|
         RSpec::Core::SharedExampleGroupInclusionStackFrame.new(
           frame[:shared_group_name],
-          frame[:inclusion_location]
+          frame[:inclusion_location],
         )
       end
 
@@ -72,13 +86,13 @@ module TurboTests
         obj[:description],
         obj[:full_description],
         metadata,
-        obj[:location_rerun_argument]
+        obj[:location_rerun_argument],
       )
     end
 
     def notification
       RSpec::Core::Notifications::ExampleNotification.for(
-        self
+        self,
       )
     end
   end

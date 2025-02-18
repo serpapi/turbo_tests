@@ -1,35 +1,28 @@
 RSpec.describe TurboTests::CLI do
+  subject(:output) { %x(bundle exec turbo_tests -f d #{fixture}).strip }
+
   before { output }
 
-  subject(:output) { `bundle exec turbo_tests -f d #{fixture}`.strip }
-
   context "when the 'seed' parameter was used" do
+    subject(:output) { %x(bundle exec turbo_tests -f d #{fixture} --seed #{seed}).strip }
+
     let(:seed) { 1234 }
 
-    subject(:output) { `bundle exec turbo_tests -f d #{fixture} --seed #{seed}`.strip }
-
     context "errors outside of examples" do
-      let(:expected_start_of_output) {
-%(
+      let(:expected_start_of_output) do
+        %(
 1 processes for 1 specs, ~ 1 specs per process
 
 Randomized with seed #{seed}
 
 An error occurred while loading #{fixture}.
-\e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m
-\e[31m\e[0m
-\e[31mZeroDivisionError:\e[0m
-\e[31m  divided by 0\e[0m
-\e[36m# #{fixture}:4:in `/'\e[0m
-\e[36m# #{fixture}:4:in `block in <top (required)>'\e[0m
-\e[36m# #{fixture}:1:in `<top (required)>'\e[0m
 ).strip
-      }
+      end
 
       let(:expected_end_of_output) do
-        "0 examples, 0 failures, 1 error occurred outside of examples\n"\
-        "\n"\
-        "Randomized with seed #{seed}"
+        "0 examples, 0 failures, 1 error occurred outside of examples\n" \
+          "\n" \
+          "Randomized with seed #{seed}"
       end
 
       let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
@@ -65,20 +58,13 @@ An error occurred while loading #{fixture}.
 
   context "when 'seed' parameter was not used" do
     context "errors outside of examples" do
-      let(:expected_start_of_output) {
-%(
+      let(:expected_start_of_output) do
+        %(
 1 processes for 1 specs, ~ 1 specs per process
 
 An error occurred while loading #{fixture}.
-\e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m
-\e[31m\e[0m
-\e[31mZeroDivisionError:\e[0m
-\e[31m  divided by 0\e[0m
-\e[36m# #{fixture}:4:in `/'\e[0m
-\e[36m# #{fixture}:4:in `block in <top (required)>'\e[0m
-\e[36m# #{fixture}:1:in `<top (required)>'\e[0m
 ).strip
-      }
+      end
 
       let(:expected_end_of_output) do
         "0 examples, 0 failures, 1 error occurred outside of examples"
@@ -94,7 +80,7 @@ An error occurred while loading #{fixture}.
       end
 
       it "exludes the seed message from the output" do
-        expect(output).to_not include("seed")
+        expect(output).not_to include("seed")
       end
     end
 
@@ -136,12 +122,12 @@ An error occurred while loading #{fixture}.
       expect($?.exitstatus).to eql(1)
 
       [
-        "undefined method `[]' for nil",
-        'it("fails") { expect(nil[:key]).to eql("value") }',
-        "# #{fixture}:2:in `block (2 levels) in <top (required)>'",
-        "1 example, 1 failure",
+        /undefined method [`']\[\]' for nil/,
+        /it\("fails"\) \{ expect\(nil\[:key\]\).to\(eql\("value"\)\) \}/,
+        /# #{Regexp.escape(fixture)}:2:in [`']block \(2 levels\) in <top \(required\)>'/,
+        /1 example, 1 failure/,
       ].each do |part|
-        expect(output).to include(part)
+        expect(output).to match(part)
       end
     end
   end

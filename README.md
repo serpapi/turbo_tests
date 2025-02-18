@@ -13,9 +13,9 @@
 
 </div>
 
-`turbo_tests` is a drop-in replacement for [`grosser/parallel_tests`](https://github.com/grosser/parallel_tests) with incremental summarized output. Source code of this gem is based on [Discourse](https://github.com/discourse/discourse/blob/6b9784cf8a18636bce281a7e4d18e65a0cbc6290/lib/turbo_tests.rb) and [RubyGems](https://github.com/rubygems/rubygems/tree/390335ceb351668cd433bd5bb9823dd021f82533/bundler/tool) work in this area.
+`turbo_tests` is a drop-in replacement for [grosser/parallel_tests](https://github.com/grosser/parallel_tests) with incremental summarized output. Source code of this gem is based on [Discourse](https://github.com/discourse/discourse/blob/6b9784cf8a18636bce281a7e4d18e65a0cbc6290/lib/turbo_tests.rb) and [RubyGems](https://github.com/rubygems/rubygems/tree/390335ceb351668cd433bd5bb9823dd021f82533/bundler/tool) work in this area.
 
-Incremental summarized output [doesn't fit vision of `parallel_tests` author](https://github.com/grosser/parallel_tests/issues/708) and [RSpec doesn't support built-in parallel testing yet](https://github.com/rspec/rspec-rails/issues/2104#issuecomment-658474900). This gem will not be useful once one of the issues above will be implemented.
+Incremental summarized output doesn't [fit vision](https://github.com/grosser/parallel_tests/issues/708) of `parallel_tests` author and [RSpec doesn't support built-in parallel testing yet](https://github.com/rspec/rspec-rails/issues/2104#issuecomment-658474900). This gem will not be useful once one of the issues above will be implemented.
 
 ## Why incremental output?
 
@@ -55,7 +55,7 @@ Finished in 2 minute 25.15 seconds (files took 0 seconds to load)
 Add this line to your application's `Gemfile`:
 
 ```ruby
-gem 'turbo_tests'
+gem "turbo_tests"
 ```
 
 And then execute:
@@ -68,6 +68,14 @@ Or install it yourself as:
 
 ```bash
 $ gem install turbo_tests
+```
+
+## Setup
+
+Create test databases
+
+```bash
+$ bundle exec turbo_tests --create
 ```
 
 ## Usage
@@ -97,6 +105,20 @@ Options:
     -v, --verbose                    More output
         --fail-fast=[N]
         --seed SEED                  Seed for rspec
+        --create                     Create test databases
+        --print_failed_group         Prints group that had failures in it
+```
+
+To pass any options supported by paralell_tests, use `--`:
+
+```bash
+bundle exec turbo_tests -n 4 -- --only-group 1 --pattern spec/system
+```
+
+`turbo_tests` supports custom formatter such as Fuubar, but you might need to require it:
+
+```bash
+bundle exec turbo_tests -r fuubar -f Fuubar spec/whatever
 ```
 
 ## Development
@@ -104,6 +126,22 @@ Options:
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+
+### Appraisals
+
+From time to time the appraisal gemfiles in `gemfiles/` will need to be updated.
+They are created and updated with the command:
+
+```shell
+BUNDLE_GEMFILE=Appraisal.root.gemfile bundle install
+BUNDLE_GEMFILE=Appraisal.root.gemfile bundle exec appraisal update
+```
+
+NOTE: Once `eval_gemfile` support is [merged into appraisal](https://github.com/thoughtbot/appraisal/pull/248) the above commands will be simplified to:
+
+```shell
+BUNDLE_GEMFILE=Appraisal.root.gemfile appraisal update
+```
 
 ## Contributing
 

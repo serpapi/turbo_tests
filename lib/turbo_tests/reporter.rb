@@ -3,27 +3,27 @@
 module TurboTests
   class Reporter
     attr_writer :load_time
+    attr_reader :pending_examples, :failed_examples
 
-    def self.from_config(formatter_config, start_time, seed, seed_used)
-      reporter = new(start_time, seed, seed_used)
+    class << self
+      def from_config(formatter_config, start_time, seed, seed_used, files, parallel_options)
+        reporter = new(start_time, seed, seed_used, files, parallel_options)
 
-      formatter_config.each do |config|
-        name, outputs = config.values_at(:name, :outputs)
+        formatter_config.each do |config|
+          name, outputs = config.values_at(:name, :outputs)
 
-        outputs.map! do |filename|
-          filename == "-" ? $stdout : File.open(filename, "w")
+          outputs.map! do |filename|
+            (filename == "-") ? $stdout : File.open(filename, "w")
+          end
+
+          reporter.add(name, outputs)
         end
 
-        reporter.add(name, outputs)
+        reporter
       end
-
-      reporter
     end
 
-    attr_reader :pending_examples
-    attr_reader :failed_examples
-
-    def initialize(start_time, seed, seed_used)
+    def initialize(start_time, seed, seed_used, files, parallel_options)
       @formatters = []
       @pending_examples = []
       @failed_examples = []
@@ -34,6 +34,8 @@ module TurboTests
       @seed_used = seed_used
       @load_time = 0
       @errors_outside_of_examples_count = 0
+      @files = files
+      @parallel_options = parallel_options
     end
 
     def add(name, outputs)
@@ -63,7 +65,7 @@ module TurboTests
       end
     end
 
-    def start(example_groups, time=RSpec::Core::Time.now)
+    def start(example_groups, time = RSpec::Core::Time.now)
       @start = time
       @load_time = (@start - @start_time).to_f
 
@@ -71,7 +73,10 @@ module TurboTests
       expected_example_count = example_groups.flatten(1).count
 
       delegate_to_formatters(:seed, RSpec::Core::Notifications::SeedNotification.new(@seed, @seed_used))
-      delegate_to_formatters(:start, RSpec::Core::Notifications::StartNotification.new(expected_example_count, @load_time))
+      delegate_to_formatters(
+        :start,
+        RSpec::Core::Notifications::StartNotification.new(expected_example_count, @load_time),
+      )
     end
 
     def report_number_of_tests(groups)
@@ -79,7 +84,7 @@ module TurboTests
 
       num_processes = groups.size
       num_tests = groups.map(&:size).sum
-      tests_per_process = (num_processes == 0 ? 0 : num_tests.to_f / num_processes).round
+      tests_per_process = ((num_processes == 0) ? 0 : num_tests.to_f / num_processes).round
 
       puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
     end
@@ -119,40 +124,48 @@ module TurboTests
 
     def error_outside_of_examples(error_message)
       @errors_outside_of_examples_count += 1
-      message error_message
+      message(error_message)
     end
 
     def finish
       end_time = RSpec::Core::Time.now
 
       @duration = end_time - @start_time
-      delegate_to_formatters :stop, RSpec::Core::Notifications::ExamplesNotification.new(self)
+      delegate_to_formatters(:stop, RSpec::Core::Notifications::ExamplesNotification.new(self))
 
-      delegate_to_formatters :start_dump, RSpec::Core::Notifications::NullNotification
-      delegate_to_formatters(:dump_pending,
+      delegate_to_formatters(:start_dump, RSpec::Core::Notifications::NullNotification)
+      delegate_to_formatters(
+        :dump_pending,
         RSpec::Core::Notifications::ExamplesNotification.new(
-          self
-        ))
-      delegate_to_formatters(:dump_failures,
+          self,
+        ),
+      )
+      delegate_to_formatters(
+        :dump_failures,
         RSpec::Core::Notifications::ExamplesNotification.new(
-          self
-        ))
-      delegate_to_formatters(:dump_summary,
+          self,
+        ),
+      )
+      delegate_to_formatters(
+        :dump_summary,
         RSpec::Core::Notifications::SummaryNotification.new(
           end_time - @start_time,
           @all_examples,
           @failed_examples,
           @pending_examples,
           @load_time,
-          @errors_outside_of_examples_count
-        ))
-      delegate_to_formatters(:seed,
+          @errors_outside_of_examples_count,
+        ),
+      )
+      delegate_to_formatters(
+        :seed,
         RSpec::Core::Notifications::SeedNotification.new(
           @seed,
           @seed_used,
-        ))
+        ),
+      )
     ensure
-      delegate_to_formatters :close, RSpec::Core::Notifications::NullNotification
+      delegate_to_formatters(:close, RSpec::Core::Notifications::NullNotification)
     end
 
     protected

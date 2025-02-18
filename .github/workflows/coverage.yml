@@ -1,0 +1,121 @@
+name: Test Coverage
+
+env:
+  K_SOUP_COV_MIN_BRANCH: 80
+  K_SOUP_COV_MIN_LINE: 91
+  K_SOUP_COV_MIN_HARD: true
+  K_SOUP_COV_DO: true
+  K_SOUP_COV_COMMAND_NAME: "RSpec Coverage"
+
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - '!*' # Do not execute on tags
+  pull_request:
+    branches:
+      - '*'
+  # Allow manually triggering the workflow.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Cancels all previous workflow runs for the same branch that have not yet completed.
+concurrency:
+  # The concurrency group contains the workflow name and the branch name.
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Specs with Coverage - Ruby ${{ matrix.ruby }} ${{ matrix.name_extra || '' }}
+    if: "!contains(github.event.commits[0].message, '[ci skip]') && !contains(github.event.commits[0].message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental || endsWith(matrix.ruby, 'head') }}
+    env: # $BUNDLE_GEMFILE must be set at job level, so it is set for all steps
+      BUNDLE_GEMFILE: ${{ github.workspace }}/${{ matrix.gemfile }}.gemfile
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Coverage
+          - ruby: "3.4"
+            appraisal: "coverage"
+            exec_cmd: "turbo_tests -n4"
+            gemfile: "Appraisal.root"
+            rubygems: latest
+            bundler: latest
+
+    steps:
+      - uses: amancevice/setup-code-climate@v2
+        name: CodeClimate Install
+        if: ${{ github.event_name != 'pull_request' }}
+        with:
+          cc_test_reporter_id: ${{ secrets.CC_TEST_REPORTER_ID }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby & RubyGems
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "${{ matrix.ruby }}"
+          rubygems: "${{ matrix.rubygems }}"
+          bundler: "${{ matrix.bundler }}"
+          bundler-cache: false
+
+      - name: CodeClimate Pre-build Notification
+        run: cc-test-reporter before-build
+        if: ${{ github.event_name != 'pull_request' }}
+        continue-on-error: ${{ matrix.experimental != 'false' }}
+
+      # Raw `bundle` will use the BUNDLE_GEMFILE set to matrix.gemfile (i.e. Appraisal.root)
+      # We need to do this first to get appraisal installed.
+      # NOTE: This does not use the main Gemfile at all.
+      - name: Bundle install for Appraisal ${{ matrix.appraisal }}
+        run: bundle
+      - name: Install Appraisal ${{ matrix.appraisal }} dependencies
+        run: bundle exec appraisal ${{ matrix.appraisal }} bundle
+      - name: Run ${{ matrix.appraisal }} tests via ${{ matrix.exec_cmd }}
+        run: bundle exec appraisal ${{ matrix.appraisal }} bundle exec ${{ matrix.exec_cmd }}
+
+      - name: CodeClimate Post-build Notification
+        run: cc-test-reporter after-build
+        if: ${{ github.event_name != 'pull_request' }}
+        continue-on-error: ${{ matrix.experimental != 'false' }}
+
+      - name: Code Coverage Summary Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          filename: ./coverage/coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: '69 80'
+        continue-on-error: ${{ matrix.experimental != 'false' }}
+
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: ${{ github.event_name == 'pull_request' }}
+        with:
+          recreate: true
+          path: code-coverage-results.md
+        continue-on-error: ${{ matrix.experimental != 'false' }}
+
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: ${{ matrix.experimental != 'false' }}
+
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
