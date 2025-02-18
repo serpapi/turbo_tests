@@ -24,4 +24,4 @@ eval_gemfile "gemfiles/modular/style.gemfile"
 # Documentation
 eval_gemfile "gemfiles/modular/documentation.gemfile"
 
-gem "appraisal", path: "/Users/pboling/src/forks/appraisal"
+gem "appraisal", github: "pboling/appraisal", branch: "eval_gemfile"

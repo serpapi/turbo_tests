@@ -1,17 +1,19 @@
+GIT
+  remote: https://github.com/pboling/appraisal.git
+  revision: 05d6d9c490c81b2989051bd95f39b40a0baf76d8
+  branch: eval_gemfile
+  specs:
+    appraisal (3.0.0.rc1)
+      bundler
+      rake
+      thor (>= 0.14.0)
+
 PATH
   remote: .
   specs:
     turbo_tests (2.2.4)
       parallel_tests (>= 3.3.0, < 5)
       rspec (>= 3.10)
-
-PATH
-  remote: /Users/pboling/src/forks/appraisal
-  specs:
-    appraisal (3.0.0.rc1)
-      bundler
-      rake
-      thor (>= 0.14.0)
 
 GEM
   remote: https://rubygems.org/
