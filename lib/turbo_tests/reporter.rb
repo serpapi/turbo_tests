@@ -4,8 +4,8 @@ module TurboTests
   class Reporter
     attr_writer :load_time
 
-    def self.from_config(formatter_config, start_time, seed, seed_used)
-      reporter = new(start_time, seed, seed_used)
+    def self.from_config(formatter_config, start_time, seed, seed_used, profile)
+      reporter = new(start_time, seed, seed_used, profile)
 
       formatter_config.each do |config|
         name, outputs = config.values_at(:name, :outputs)
@@ -23,11 +23,15 @@ module TurboTests
     attr_reader :pending_examples
     attr_reader :failed_examples
 
-    def initialize(start_time, seed, seed_used)
+    def initialize(start_time, seed, seed_used, profile)
       @formatters = []
       @pending_examples = []
       @failed_examples = []
+      @profile = profile
       @all_examples = []
+      @all_profile_examples = []
+      @all_profile_groups = {}
+      @profile_time = 0
       @messages = []
       @start_time = start_time
       @seed = seed
@@ -44,6 +48,8 @@ module TurboTests
             RSpec::Core::Formatters::ProgressFormatter
           when "d", "documentation"
             RSpec::Core::Formatters::DocumentationFormatter
+          when "profile"
+            RSpec::Core::Formatters::ProfileFormatter
           else
             Kernel.const_get(name)
           end
@@ -112,6 +118,19 @@ module TurboTests
       @failed_examples << example
     end
 
+    def dump_profile(profile)
+      group = JsonRowsFormatter::Group.new(
+        # TODO: this isnt correct, but we cant seem to access the existing group info as its private 
+        location:  profile[:examples].map { |e| e[:location].split(":").first }.uniq.join(", "),
+        description: "Group #{@all_profile_groups.keys.count + 1}",
+        count: profile[:examples].count,
+        total_time: profile[:examples].sum { |e| e[:execution_result][:run_time] },
+      )
+      @all_profile_groups[group] = group
+      @all_profile_examples += profile[:examples]
+      @profile_time += profile[:duration]
+    end
+
     def message(message)
       delegate_to_formatters(:message, RSpec::Core::Notifications::MessageNotification.new(message))
       @messages << message
@@ -146,6 +165,18 @@ module TurboTests
           @load_time,
           @errors_outside_of_examples_count
         ))
+      delegate_to_formatters(:dump_profile,
+        RSpec::Core::Notifications::ProfileNotification.new(
+          @profile_time,
+          @all_profile_examples.map do |e| 
+            JsonRowsFormatter::Example.new(
+              **e, 
+              execution_result: JsonRowsFormatter::ExampleExecutionResult.new(**e[:execution_result])
+            ) 
+          end,
+          @profile,
+          @all_profile_groups
+        )) if @all_profile_examples.any?
       delegate_to_formatters(:seed,
         RSpec::Core::Notifications::SeedNotification.new(
           @seed,

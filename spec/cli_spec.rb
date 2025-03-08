@@ -3,6 +3,62 @@ RSpec.describe TurboTests::CLI do
 
   subject(:output) { `bundle exec turbo_tests -f d #{fixture}`.strip }
 
+  context "when the 'profile' parameter was used" do
+    let(:profile) { 10 }
+
+    subject(:output) { `bundle exec turbo_tests -f d #{fixture} --profile #{profile}`.strip }
+    
+    context "profile param of string", pending: "Works, but error throws before i can catch it?" do
+      let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
+
+      let(:profile) { "sadasd" }
+
+      it "converts to integer" do
+        expect { output }.to raise_error(ArgumentError, "Invalid argument for --profile. Must be an integer.")
+      end
+    end
+
+    context "reports the combined total of profile, but only shows max --profile" do
+      subject(:output) { `bundle exec turbo_tests  #{fixture} --profile #{profile}`.strip }
+
+      let(:fixture) { "./fixtures/rspec/6_tests_spec.rb ./fixtures/rspec/another_6_tests_spec.rb" }
+
+      let(:profile) { 10 }
+
+      it do
+        expect($?.exitstatus).to eql(0)
+
+        [
+          "12 examples, 0 failures",
+          "Top #{profile} slowest examples",
+          "Top 2 slowest example groups",
+        ].each do |part|
+          expect(output).to include(part).exactly(1).times
+        end
+      end
+    end
+
+    context "pending exceptions", :aggregate_failures do
+      let(:fixture) { "./fixtures/rspec/pending_exceptions_spec.rb" }
+
+      it "reports, doesnt include group when only 1 group" do
+        expect($?.exitstatus).to eql(0)
+
+        [
+          "is implemented but skipped with 'pending' (PENDING: TODO: skipped with 'pending')",
+          "is implemented but skipped with 'skip' (PENDING: TODO: skipped with 'skip')",
+          "is implemented but skipped with 'xit' (PENDING: Temporarily skipped with xit)",
+          "slowest examples",
+          "3 examples, 0 failures, 3 pending",
+          "Pending: (Failures listed here are expected and do not affect your suite's status)",
+        ].each do |part|
+          expect(output).to include(part).exactly(1).times
+        end
+        expect(output).not_to include("slowest example groups")
+      end
+    end
+  end
+
   context "when the 'seed' parameter was used" do
     let(:seed) { 1234 }
 

@@ -17,6 +17,7 @@ module TurboTests
       verbose = false
       fail_fast = nil
       seed = nil
+      profile = nil
 
       OptionParser.new { |opts|
         opts.banner = <<~BANNER
@@ -81,6 +82,15 @@ module TurboTests
         opts.on("--seed SEED", "Seed for rspec") do |s|
           seed = s
         end
+
+        opts.on("--profile N", "Slowest N tests") do |n|
+          n = begin
+            Integer(n)
+          rescue
+            raise ArgumentError, "Invalid argument for --profile. Must be an integer."
+          end
+          profile = n
+        end
       }.parse!(@argv)
 
       requires.each { |f| require(f) }
@@ -99,14 +109,15 @@ module TurboTests
       end
 
       exitstatus = TurboTests::Runner.run(
-        formatters: formatters,
-        tags: tags,
+        formatters:,
+        tags:,
         files: @argv.empty? ? ["spec"] : @argv,
-        runtime_log: runtime_log,
-        verbose: verbose,
-        fail_fast: fail_fast,
-        count: count,
-        seed: seed
+        runtime_log:,
+        verbose:,
+        fail_fast:,
+        count:,
+        seed:,
+        profile:
       )
 
       # From https://github.com/serpapi/turbo_tests/pull/20/
