@@ -20,7 +20,7 @@ jobs:
       packages: write
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Ruby 2.7
       uses: ruby/setup-ruby@v1
       with:
@@ -33,7 +33,7 @@ jobs:
         bundle install
         bundle exec turbo_tests
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: "ruby-gem"
         path: "pkg/*.gem"
