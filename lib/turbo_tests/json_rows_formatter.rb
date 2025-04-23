@@ -25,6 +25,7 @@ module TurboTests
       :start,
       :close,
       :example_failed,
+      :dump_profile,
       :example_passed,
       :example_pending,
       :example_group_started,
@@ -43,6 +44,13 @@ module TurboTests
       output_row(
         type: :load_summary,
         summary: load_summary_to_json(notification)
+      )
+    end
+
+    def dump_profile(notification)
+      output_row(
+        type: :dump_profile,
+        dump_profile: dump_profile_to_json(notification)
       )
     end
 
@@ -114,13 +122,16 @@ module TurboTests
       end
     end
 
+    ExampleExecutionResult = Struct.new(:example_skipped?, :pending_message, :status, :pending_fixed?, :exception, :run_time)
+
     def execution_result_to_json(result)
       {
         example_skipped?: result.example_skipped?,
         pending_message: result.pending_message,
         status: result.status,
         pending_fixed?: result.pending_fixed?,
-        exception: exception_to_json(result.exception || result.pending_exception)
+        exception: exception_to_json(result.exception || result.pending_exception),
+        run_time: result.run_time
       }
     end
 
@@ -130,6 +141,8 @@ module TurboTests
         inclusion_location: frame.inclusion_location
       }
     end
+    
+    Example = Struct.new(:execution_result, :location, :description, :full_description, :metadata, :location_rerun_argument)
 
     def example_to_json(example)
       {
@@ -154,6 +167,15 @@ module TurboTests
         load_time: notification.load_time,
       }
     end
+
+    def dump_profile_to_json(notification)
+      {
+        duration: notification.duration,
+        examples: notification.examples.map { |example| example_to_json(example) },
+      }
+    end
+
+    Group = Struct.new(:description, :location, :total_time, :count, :average)
 
     def group_to_json(notification)
       {
