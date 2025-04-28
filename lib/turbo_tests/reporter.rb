@@ -4,8 +4,8 @@ module TurboTests
   class Reporter
     attr_writer :load_time
 
-    def self.from_config(formatter_config, start_time, seed, seed_used)
-      reporter = new(start_time, seed, seed_used)
+    def self.from_config(formatter_config, *args)
+      reporter = new(*args)
 
       formatter_config.each do |config|
         name, outputs = config.values_at(:name, :outputs)
@@ -23,7 +23,7 @@ module TurboTests
     attr_reader :pending_examples
     attr_reader :failed_examples
 
-    def initialize(start_time, seed, seed_used)
+    def initialize(start_time, seed, seed_used, files, parallel_options)
       @formatters = []
       @pending_examples = []
       @failed_examples = []
@@ -34,6 +34,9 @@ module TurboTests
       @seed_used = seed_used
       @load_time = 0
       @errors_outside_of_examples_count = 0
+      @files = files
+      @parallel_options = parallel_options
+      @custom_formatters = false
     end
 
     def add(name, outputs)
@@ -45,6 +48,7 @@ module TurboTests
           when "d", "documentation"
             RSpec::Core::Formatters::DocumentationFormatter
           else
+            @custom_formatters = true
             Kernel.const_get(name)
           end
 
@@ -70,8 +74,10 @@ module TurboTests
       report_number_of_tests(example_groups)
       expected_example_count = example_groups.flatten(1).count
 
+      examples_count = self.examples_count if @custom_formatters
+
       delegate_to_formatters(:seed, RSpec::Core::Notifications::SeedNotification.new(@seed, @seed_used))
-      delegate_to_formatters(:start, RSpec::Core::Notifications::StartNotification.new(expected_example_count, @load_time))
+      delegate_to_formatters(:start, RSpec::Core::Notifications::StartNotification.new(examples_count, @load_time))
     end
 
     def report_number_of_tests(groups)
@@ -82,6 +88,15 @@ module TurboTests
       tests_per_process = (num_processes == 0 ? 0 : num_tests.to_f / num_processes).round
 
       puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
+    end
+
+    def examples_count
+      files = ParallelTests::RSpec::Runner.send(:find_tests, @files, @parallel_options)
+      output_file = Tempfile.new("rspec-summary")
+      `#{ENV.fetch("BUNDLE_BIN_PATH")} exec rspec --dry-run --format json --out='#{output_file.path}' #{files.join(" ")}`
+
+      json_summary = JSON.parse(output_file.read, symbolize_names: true)
+      json_summary.dig(:summary, :example_count) || 0
     end
 
     def group_started(notification)
