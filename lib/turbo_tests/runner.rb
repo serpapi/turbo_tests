@@ -155,11 +155,21 @@ module TurboTests
           []
         end
 
+        junit_options = if defined?(RspecJunitFormatter)
+          [
+            "--format", "RspecJunitFormatter",
+            "--out", "rspec/rspec#{process_id}.xml"
+          ]
+        else
+          []
+        end
+
         command = [
           *command_name,
           *extra_args,
           *seed_option,
           "--format", "TurboTests::JsonRowsFormatter",
+          *junit_options,
           *record_runtime_options,
           *tests,
         ]

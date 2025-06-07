@@ -78,6 +78,17 @@ Execute tests:
 $ bundle exec turbo_tests
 ```
 
+To enable support for RSpec Junit formatting (ie for CircleCI), include `rspec_junit_formatter` in Gemfile, and pass the `-r rspec_junit_formatter` option. Output will be written to `rspec/rspec#{TEST_ENV_NUMBER}.xml` files. Update your Circle CI config:
+
+```yml
+# .circleci/config.yml
+- run: 
+    name: RSpec
+    command: bundle exec turbo_tests -r rspec_junit_formatter
+- store_test_results:
+    path: rspec
+```
+
 Show help:
 
 ```bash
