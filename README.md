@@ -99,6 +99,26 @@ Options:
         --seed SEED                  Seed for rspec
 ```
 
+### Rake Hooks
+
+If Rake is present, the CLI will invoke the tasks `turbo_tests:setup` and `turbo_tests:cleanup` before and after running
+the test suite. These can be used to do work that should only happen once, such as removing files or collating coverage:
+
+```ruby
+# lib/tasks/turbo_tests.rake
+namespace :turbo_tests do
+  task setup: :environment do
+    # precompile assets once, to avoid doing it per each process
+    Rake::Tasks["assets:precompile"]
+  end
+
+  task cleanup: :environment do
+    # keep things nice and tidy
+    Rake::Tasks["assets:clobber"]
+  end
+end
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
