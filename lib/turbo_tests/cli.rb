@@ -98,6 +98,10 @@ module TurboTests
         end
       end
 
+      load_rake
+
+      invoke_rake_task("turbo_tests:setup")
+
       exitstatus = TurboTests::Runner.run(
         formatters: formatters,
         tags: tags,
@@ -109,8 +113,29 @@ module TurboTests
         seed: seed
       )
 
+      invoke_rake_task("turbo_tests:cleanup")
+
       # From https://github.com/serpapi/turbo_tests/pull/20/
       exit exitstatus
+    end
+
+    private
+
+    def load_rake
+      begin
+        require "rake"
+      rescue LoadError
+        return # rake is optional
+      end
+
+      Rake.application.init
+      Rake.application.load_rakefile
+    end
+
+    def invoke_rake_task(name)
+      return unless defined?(Rake) && Rake::Task.task_defined?(name)
+
+      Rake::Task[name].invoke
     end
   end
 end
