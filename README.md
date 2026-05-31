@@ -99,6 +99,67 @@ Options:
         --seed SEED                  Seed for rspec
 ```
 
+### Rake Hooks
+
+If Rake is present, the CLI will invoke the tasks `turbo_tests:setup` and `turbo_tests:cleanup` before and after running
+the test suite. These can be used to do work that should only happen once, such as removing files or collating coverage:
+
+```ruby
+# lib/tasks/turbo_tests.rake
+namespace :turbo_tests do
+  task setup: :environment do
+    # precompile assets once, to avoid doing it per each process
+    Rake::Tasks["assets:precompile"]
+  end
+
+  task cleanup: :environment do
+    # keep things nice and tidy
+    Rake::Tasks["assets:clobber"]
+  end
+end
+```
+
+### SimpleCov
+
+You can get accurate coverage reporting by having SimpleCov write the results for each process into a different directory
+and then have the results collated as part of cleanup:
+
+```ruby
+# spec/spec_helper.rb
+require "simplecov"
+
+# Configure minimum test coverage levels
+#
+# Details of default values for these configuration options can be seen at
+# https://github.com/simplecov-ruby/simplecov/blob/master/lib/simplecov/profiles/rails.rb
+SimpleCov.start("rails") do
+  enable_coverage :branch
+  
+  coverage_dir "coverage/turbo_tests/#{ENV["TEST_ENV_NUMBER"]}"
+
+  formatter SimpleCov::Formatter::SimpleFormatter
+end
+
+# lib/tasks/turbo_tests.rake
+namespace :turbo_tests do
+  task setup: :environment do
+    # remove any existing coverage files to avoid false reporting
+    FileUtils.rm_rf("coverage/turbo_tests")
+  end
+
+  task cleanup: :environment do
+    require "simplecov"
+
+    # report coverage usage based on the results of all tests
+    SimpleCov.collate Dir["coverage/turbo_tests/*/.resultset.json"] do
+      enable_coverage :branch
+
+      minimum_coverage line: 100, branch: 100
+    end
+  end
+end
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
