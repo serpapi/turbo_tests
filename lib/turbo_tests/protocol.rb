@@ -37,12 +37,13 @@ module TurboTests
 
       # Returns an Array of [:output, String] / [:row, Hash] pairs (1 or 2
       # items: in mixed mode a row may share its line with output printed
-      # just before it).
+      # just before it). On a dedicated channel every line must be a row.
       def parse_line(line)
         line = line.b
         unless @prefix
           row = decode(line)
-          return row ? [[:row, row]] : [[:output, line]]
+          raise Error, "malformed row on dedicated channel: #{line.inspect[0, 200]}" unless row
+          return [[:row, row]]
         end
 
         marker = line.index(@prefix)
@@ -69,13 +70,27 @@ module TurboTests
       end
     end
 
-    # Writer for the current process, resolved from the environment.
+    class Error < StandardError; end
+
+    # Writer for the current process, resolved from the environment. The
+    # dedicated rows IO lives as long as the process: formatters are
+    # re-created per job and must all share one IO object (a fresh
+    # IO.for_fd per job would close the fd when garbage collected).
     def self.default_writer(fallback_output)
       fd = ENV[ROWS_FD_ENV]
       if fd && !fd.empty?
-        Writer.new(IO.for_fd(Integer(fd), "w"))
+        Writer.new(rows_io(Integer(fd)))
       else
         Writer.new(fallback_output, ENV[PREFIX_ENV])
+      end
+    end
+
+    def self.rows_io(fd)
+      @rows_io = nil if @rows_io && @rows_io.fileno != fd
+      @rows_io ||= begin
+        io = IO.for_fd(fd, "w")
+        io.sync = true
+        io
       end
     end
   end
