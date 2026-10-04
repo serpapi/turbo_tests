@@ -47,7 +47,7 @@ module TurboTests
 
     IoEntry = Struct.new(:slot, :kind, :buffer, :reader)
 
-    attr_reader :config_row, :total_examples, :runtimes, :slots
+    attr_reader :config_row, :total_examples, :runtimes, :slots, :unknown_example_ids
     attr_accessor :scheduler
 
     def initialize(pool, scheduler, reporter, options, job_args: [], out: $stdout, err: $stderr)
@@ -71,6 +71,7 @@ module TurboTests
       @exit_codes = []
       @total_examples = 0
       @runtimes = {}
+      @unknown_example_ids = []
       @config_row = nil
       @boot_errors = []
       @preloader_info = nil
@@ -520,6 +521,7 @@ module TurboTests
       duration = row[:duration].to_f
       @scheduler.report(job, duration) if @scheduler
       @exit_codes << row[:exit_code].to_i unless row[:exit_code].nil?
+      @unknown_example_ids.concat(Array(row[:unknown_example_ids]).map(&:to_s))
       record_runtimes(job, duration, slot.times)
       slot.job = nil
       slot.state = :idle

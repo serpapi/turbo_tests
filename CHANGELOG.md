@@ -11,7 +11,7 @@ All notable changes to this project are documented here. The format follows
 - Added `--only-group` and `--groups` static shard selection; closes #2.
 - Added `--default-path`; closes #13.
 - Added RSpec passthrough after `--` and `--test-options`; closes #14.
-- Added `--only-failures` and `--next-failure` support with per-worker `.rspec_status` handling; closes #43.
+- Added `--only-failures` and `--next-failure` support; closes #43. The status file (`config.example_status_persistence_file_path`) is written once per run by the parent with rspec's merge semantics, instead of by every worker after every file: rspec rewrites the whole file under an exclusive lock, so per-file writes were quadratic in the number of recorded examples and serialised the workers on the lock (1.1 s per write at 127k recorded examples on a 1,645-file Rails suite).
 - Added `turbo_tests:setup` and `turbo_tests:cleanup` rake hooks from #82 by G-Rath; closes #18.
 - Added database setup guidance and rake-hook replacement for `--create`, adopting the intent of #21 by tradiff; closes #18.
 - Added `--print-failed-group`, adopting #34 by mRudzki.

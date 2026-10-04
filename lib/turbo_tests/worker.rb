@@ -72,6 +72,7 @@ module TurboTests
         seed: config.seed,
         profile_examples: profile.is_a?(Integer) ? profile : nil,
         example_status_persistence_file_path: config.example_status_persistence_file_path,
+        dry_run: config.respond_to?(:dry_run?) && config.dry_run? ? true : false,
         fail_fast: config.fail_fast,
         silence_filter_announcements: silence_filter_announcements ? true : false,
         fail_if_no_examples: config.fail_if_no_examples ? true : false,
@@ -280,21 +281,33 @@ module TurboTests
           end
           runner_exit_code(passed)
         end
-      persist_example_statuses
+      # The example status file is written once, by the parent (Runner#persist_example_statuses):
+      # rspec rewrites the whole file under an exclusive lock, which per job is quadratic
+      # and serialises the workers on that lock. Loaded examples that did not run are
+      # reported so the parent can keep their previous status, as rspec does.
+      finished = {
+        type: "job_finished",
+        job_id: job[:id],
+        exit_code: exit_code,
+        duration: Worker.monotonic - @job_started,
+        files: job[:files],
+        example_count: count,
+        worker: @index
+      }
+      unknown = unknown_example_ids(world)
+      finished[:unknown_example_ids] = unknown unless unknown.empty?
       @finished_rows = [
         {type: "seed", seed: config.seed, seed_used: config.seed_used? ? true : false, worker: @index},
-        {
-          type: "job_finished",
-          job_id: job[:id],
-          exit_code: exit_code,
-          duration: Worker.monotonic - @job_started,
-          files: job[:files],
-          example_count: count,
-          worker: @index
-        }
+        finished
       ]
     ensure
       cleanup
+    end
+
+    def unknown_example_ids(world)
+      return [] unless world.respond_to?(:all_examples)
+
+      world.all_examples.select { |example| example.execution_result.status.nil? }.map(&:id)
     end
 
     # Every job carries the same RSpec arguments: parse them (and the option
@@ -314,10 +327,6 @@ module TurboTests
       return @runner.exit_code(passed) if @runner.respond_to?(:exit_code)
 
       passed ? 0 : RSpec.configuration.failure_exit_code
-    end
-
-    def persist_example_statuses
-      @runner.__send__(:persist_example_statuses) if @runner.respond_to?(:persist_example_statuses, true)
     end
 
     def cleanup

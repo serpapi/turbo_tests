@@ -63,6 +63,7 @@ module TurboTests
       }
       status = reporter.report(info) { supervisor.run }
       save_runtimes(supervisor.runtimes)
+      persist_example_statuses(reporter, supervisor.config_row, supervisor.unknown_example_ids)
       status
     end
 
@@ -207,5 +208,34 @@ module TurboTests
 
       RuntimeLog.save(RuntimeLog.save_path(@options), runtimes)
     end
+
+    # One write of config.example_status_persistence_file_path per run, from
+    # the parent, with rspec's own merge: examples that did not run keep their
+    # previous status. rspec rewrites the whole file under an exclusive lock
+    # at the end of each process; doing that once per job would be quadratic
+    # in the number of examples and would serialise the workers on the lock
+    # (1.1 s per write at 127k recorded examples). Command-pool workers are
+    # plain rspec processes and write the file themselves.
+    def persist_example_statuses(reporter, config_row, unknown_example_ids = [])
+      return if @pool_name == :command || config_row.nil? || config_row[:dry_run]
+
+      path = config_row[:example_status_persistence_file_path]
+      return if path.nil? || path.to_s.empty?
+
+      # Unknown first: an id that also has a result keeps the result.
+      examples = unknown_example_ids.map { |id| UnknownExample.new(id, UnknownResult.new(nil, nil)) }
+      examples.concat(reporter.examples.select(&:id))
+      return if examples.empty?
+
+      RSpec::Core::ExampleStatusPersister.persist(examples, path)
+    rescue SystemCallError, IOError => e
+      @err.puts "turbo_tests: could not write example statuses to #{path} " \
+                "(config.example_status_persistence_file_path): #{e.class}: #{e.message}"
+    end
+
+    # Stand-ins for loaded examples that did not run: rspec records them with
+    # status "unknown" so the merge keeps their previous status.
+    UnknownResult = Struct.new(:status, :run_time)
+    UnknownExample = Struct.new(:id, :execution_result)
   end
 end

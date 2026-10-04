@@ -253,6 +253,8 @@ parent CLI
 
 Runtime logs are always read when present and recorded after runs unless `--no-runtime-log` is set. The log format is `path:seconds` and is compatible with `parallel_tests`.
 
+`config.example_status_persistence_file_path` (the file behind `--only-failures`) is written once per run, by the parent, with rspec's own merge: examples that were loaded but did not run keep their previous status. rspec rewrites the whole file under an exclusive lock at the end of a process; writing it from every worker after every file would be quadratic in the number of recorded examples and would serialise the workers on that lock (on a suite with 130k examples one such write took 1.1 s). `--pool command` workers are plain `rspec` processes and write it themselves, once each.
+
 Shutdown is bounded. After RSpec finishes, a worker that will not exit gets a `SIGUSR1` thread dump, diagnostics, `TERM`, then `KILL`; the run exits nonzero.
 
 Exit status is `0` only when examples pass and no worker hangs, crashes, or reports an error outside examples. Otherwise it is the maximum RSpec worker status or `1`. A run stopped by Ctrl-C exits `130` (a second Ctrl-C kills the workers immediately), one stopped by `SIGTERM` exits `143`. `--pool command` runs one `rspec` process per static group, so it needs `--groups` ≤ `-n` (the default).
