@@ -257,7 +257,7 @@ Shutdown is bounded. After RSpec finishes, a worker that will not exit gets a `S
 
 Exit status is `0` only when examples pass and no worker hangs, crashes, or reports an error outside examples. Otherwise it is the maximum RSpec worker status or `1`. A run stopped by Ctrl-C exits `130` (a second Ctrl-C kills the workers immediately), one stopped by `SIGTERM` exits `143`. `--pool command` runs one `rspec` process per static group, so it needs `--groups` ≤ `-n` (the default).
 
-`bin/benchmark` on a 16-core arm64 laptop, 4 workers, median wall time of 5 runs (`fixtures/benchmark`, generated; raw samples in the CI `perf-artifacts`):
+`bin/benchmark` on a 16-core arm64 laptop, 4 workers, median wall time of 5 runs (`fixtures/benchmark`, generated; `--json FILE` keeps the raw samples, and the CI perf job is configured to upload them as `perf-artifacts`):
 
 | suite | serial `rspec` | turbo_tests 2.2.5 | v3 fork | v3 spawn | v3 command |
 |---|---|---|---|---|---|
