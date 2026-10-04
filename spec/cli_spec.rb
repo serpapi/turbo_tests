@@ -3,29 +3,35 @@ RSpec.describe TurboTests::CLI do
 
   subject(:output) { `bundle exec turbo_tests -f d #{fixture}`.strip }
 
+  # Ruby 3.4 quotes 'method' and prefixes the owner (Integer#/); older
+  # Rubies print `method'.
+  def frame(fixture, line, label)
+    /\e\[36m# #{Regexp.escape(fixture)}:#{line}:in [`'](?:\w+#)?#{Regexp.escape(label)}'\e\[0m/
+  end
+
+  def banner
+    /\A1 worker \((?:fork|spawn)\) for 1 spec file\n/
+  end
+
+  def error_outside_of_examples(fixture)
+    Regexp.new(
+      "An error occurred while loading #{Regexp.escape(fixture)}\\.\n" \
+      "#{Regexp.escape("\e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m")}\n" \
+      "#{Regexp.escape("\e[31m\e[0m")}\n" \
+      "#{Regexp.escape("\e[31mZeroDivisionError:\e[0m")}\n" \
+      "#{Regexp.escape("\e[31m  divided by 0\e[0m")}\n" \
+      "#{frame(fixture, 4, "/").source}\n" \
+      "#{frame(fixture, 4, "block in <top (required)>").source}\n" \
+      "#{frame(fixture, 1, "<top (required)>").source}"
+    )
+  end
+
   context "when the 'seed' parameter was used" do
     let(:seed) { 1234 }
 
     subject(:output) { `bundle exec turbo_tests -f d #{fixture} --seed #{seed}`.strip }
 
     context "errors outside of examples" do
-      let(:expected_start_of_output) {
-%(
-1 processes for 1 specs, ~ 1 specs per process
-
-Randomized with seed #{seed}
-
-An error occurred while loading #{fixture}.
-\e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m
-\e[31m\e[0m
-\e[31mZeroDivisionError:\e[0m
-\e[31m  divided by 0\e[0m
-\e[36m# #{fixture}:4:in `/'\e[0m
-\e[36m# #{fixture}:4:in `block in <top (required)>'\e[0m
-\e[36m# #{fixture}:1:in `<top (required)>'\e[0m
-).strip
-      }
-
       let(:expected_end_of_output) do
         "0 examples, 0 failures, 1 error occurred outside of examples\n"\
         "\n"\
@@ -37,7 +43,7 @@ An error occurred while loading #{fixture}.
       it "reports" do
         expect($?.exitstatus).to eql(1)
 
-        expect(output).to start_with(expected_start_of_output)
+        expect(output).to match(/#{banner.source}\nRandomized with seed #{seed}\n\n#{error_outside_of_examples(fixture).source}/)
         expect(output).to end_with(expected_end_of_output)
       end
     end
@@ -65,21 +71,6 @@ An error occurred while loading #{fixture}.
 
   context "when 'seed' parameter was not used" do
     context "errors outside of examples" do
-      let(:expected_start_of_output) {
-%(
-1 processes for 1 specs, ~ 1 specs per process
-
-An error occurred while loading #{fixture}.
-\e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m
-\e[31m\e[0m
-\e[31mZeroDivisionError:\e[0m
-\e[31m  divided by 0\e[0m
-\e[36m# #{fixture}:4:in `/'\e[0m
-\e[36m# #{fixture}:4:in `block in <top (required)>'\e[0m
-\e[36m# #{fixture}:1:in `<top (required)>'\e[0m
-).strip
-      }
-
       let(:expected_end_of_output) do
         "0 examples, 0 failures, 1 error occurred outside of examples"
       end
@@ -89,7 +80,7 @@ An error occurred while loading #{fixture}.
       it "reports" do
         expect($?.exitstatus).to eql(1)
 
-        expect(output).to start_with(expected_start_of_output)
+        expect(output).to match(/#{banner.source}\n#{error_outside_of_examples(fixture).source}/)
         expect(output).to end_with(expected_end_of_output)
       end
 
@@ -135,14 +126,19 @@ An error occurred while loading #{fixture}.
     it "outputs file name and line number" do
       expect($?.exitstatus).to eql(1)
 
-      [
-        "undefined method `[]' for nil",
-        'it("fails") { expect(nil[:key]).to eql("value") }',
-        "# #{fixture}:2:in `block (2 levels) in <top (required)>'",
-        "1 example, 1 failure",
-      ].each do |part|
-        expect(output).to include(part)
-      end
+      expect(output).to match(/undefined method [`']\[\]' for nil/)
+      expect(output).to include('it("fails") { expect(nil[:key]).to eql("value") }')
+      expect(output).to match(/# #{Regexp.escape(fixture)}:2:in [`']block \(2 levels\) in <top \(required\)>'/)
+      expect(output).to include("1 example, 1 failure")
+    end
+  end
+
+  describe "invalid options" do
+    subject(:output) { `bundle exec turbo_tests --frobnicate 2>&1`.strip }
+
+    it "exits 1 with a usage hint" do
+      expect($?.exitstatus).to eql(1)
+      expect(output).to include("turbo_tests: invalid option: --frobnicate", "turbo_tests --help")
     end
   end
 end
