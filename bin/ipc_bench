@@ -1,0 +1,141 @@
+#!/usr/bin/env ruby
+# IPC micro-benchmark (turbo_tests #19): one worker streaming N result rows to a parent.
+#
+#   bin/ipc_bench [N]
+#
+# Transports:
+#   pipe_json   IO.pipe, one JSON object per line (what turbo_tests v3 does)
+#   pipe_marshal IO.pipe, 4-byte length prefix + Marshal.dump (rspec-core bisect style)
+#   sock_marshal UNIXSocket.pair, same framing
+#   drb_unix    DRb over drbunix:, worker calls front.row(hash) per result (Rails parallelize style)
+#   drb_unix_batch same, but 100 rows per call (what a batching DRb design would do)
+#
+# Each row is a realistic passed-example row (~700 bytes of JSON). The parent parses every row
+# and counts them; the worker is a forked child. Wall time is measured in the parent from fork to
+# the last row. Runs are single-shot; repeat the script to see spread.
+require "json"
+require "socket"
+require "drb/drb"
+require "tmpdir"
+
+N = (ARGV[0] || 100_000).to_i
+
+ROW = {
+  "type" => "example",
+  "id" => "./spec/search/google/parser_spec.rb[1:2:3:4]",
+  "description" => "extracts the knowledge graph title when the header is present",
+  "full_description" => "Search::Google::Parser knowledge graph with a header extracts the knowledge graph title when the header is present",
+  "status" => "passed",
+  "run_time" => 0.0123456,
+  "location" => "./spec/search/google/parser_spec.rb:123",
+  "file_path" => "./spec/search/google/parser_spec.rb",
+  "line_number" => 123,
+  "metadata" => {"type" => "model", "aggregate_failures" => true, "shared_group_inclusion_backtrace" => []},
+  "pending_message" => nil,
+  "exception" => nil,
+  "extra_failure_lines" => [],
+  "worker" => 3,
+}.freeze
+
+def measure(label)
+  t0 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  count = yield
+  t1 = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  raise "#{label}: got #{count} rows, expected #{N}" unless count == N
+  wall = t1 - t0
+  printf "%-16s %8.3f s  %9.0f rows/s  %6.2f us/row\n", label, wall, N / wall, wall / N * 1e6
+  wall
+end
+
+def wait_child(pid)
+  Process.wait(pid)
+  raise "child failed" unless $?.success?
+end
+
+def pipe_json
+  r, w = IO.pipe
+  pid = fork do
+    r.close
+    N.times { |i| w.write(JSON.generate(ROW.merge("line_number" => i)) << "\n") }
+    w.close
+  end
+  w.close
+  count = 0
+  while (line = r.gets)
+    JSON.parse(line)
+    count += 1
+  end
+  wait_child(pid)
+  count
+end
+
+def framed_marshal(reader, writer, pid_block)
+  pid = fork do
+    reader.close
+    N.times do |i|
+      payload = Marshal.dump(ROW.merge("line_number" => i))
+      writer.write([payload.bytesize].pack("N") << payload)
+    end
+    writer.close
+  end
+  writer.close
+  count = 0
+  while (header = reader.read(4))
+    len = header.unpack1("N")
+    Marshal.load(reader.read(len))
+    count += 1
+  end
+  wait_child(pid)
+  count
+end
+
+def pipe_marshal
+  r, w = IO.pipe
+  framed_marshal(r, w, nil)
+end
+
+def sock_marshal
+  a, b = UNIXSocket.pair
+  framed_marshal(a, b, nil)
+end
+
+class Front
+  attr_reader :count
+  def initialize; @count = 0; @done = Queue.new; end
+  def row(_hash); @count += 1; end
+  def rows(array); @count += array.size; end
+  def finish; @done << true; end
+  def wait; @done.pop; end
+end
+
+def drb(batch)
+  dir = Dir.mktmpdir("ipc_bench")
+  uri = "drbunix:#{dir}/sink.sock"
+  front = Front.new
+  server = DRb.start_service(uri, front)
+  pid = fork do
+    server.stop_service rescue nil
+    DRb.start_service
+    remote = DRbObject.new_with_uri(uri)
+    if batch
+      (N / 100).times { |b| remote.rows(Array.new(100) { |i| ROW.merge("line_number" => b * 100 + i) }) }
+    else
+      N.times { |i| remote.row(ROW.merge("line_number" => i)) }
+    end
+    remote.finish
+  end
+  front.wait
+  wait_child(pid)
+  server.stop_service
+  front.count
+ensure
+  FileUtils.rm_rf(dir) if dir
+end
+
+require "fileutils"
+puts "#{RUBY_DESCRIPTION}\nN=#{N} rows, row size #{JSON.generate(ROW).bytesize} bytes JSON / #{Marshal.dump(ROW).bytesize} bytes Marshal"
+measure("pipe_json") { pipe_json }
+measure("pipe_marshal") { pipe_marshal }
+measure("sock_marshal") { sock_marshal }
+measure("drb_unix") { drb(false) }
+measure("drb_unix_batch") { drb(true) }

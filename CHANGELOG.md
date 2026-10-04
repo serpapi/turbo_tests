@@ -58,7 +58,7 @@ All notable changes to this project are documented here. The format follows
 ### Removed
 
 - Removed the `parallel_tests` runtime dependency.
-- Removed DRb/Marshal-style designs from consideration; v3 uses JSON rows over pipes.
+- Declined #19 (DRb instead of pipes): DRb is synchronous RPC with a server thread per process and `Marshal.load` of peer data, it does nothing for a worker that will not exit, and `drb` is a bundled gem since Ruby 3.4; results stay JSON rows over pipes. Ractors, Marshal frames and threads are weighed in the README's "Alternatives considered".
 - Removed arbitrary formatter constant evaluation through unrestricted `Kernel.const_get`.
 
 Measurements: see the README's "How it works" section (`bin/benchmark`, `bin/leak_check`).
