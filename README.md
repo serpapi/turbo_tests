@@ -264,8 +264,8 @@ Exit status is `0` only when examples pass and no worker hangs, crashes, or repo
 Workers are processes connected to the parent by two pipes each (jobs in, JSON rows out), supervised by one `IO.select` loop. The alternatives, and why they are not used:
 
 - **DRb** (#19; what Rails `parallelize` and flatware's sink use). It is remote method invocation: every result is a synchronous call that blocks the worker until the parent has handled it, so a slow formatter throttles every worker, whereas a pipe write returns as soon as the kernel buffer takes it. It runs a server thread in each process, `Marshal.load`s whatever the peer sends, and does nothing about process lifecycle: a worker that will not exit is just as stuck, which is the bug this release is about. Since Ruby 3.4 `drb` is a bundled gem, so it would also be a new dependency. Pipes are inherited across `fork`, work on Windows through `spawn`, and JSON rows can be read by anything.
-- **Marshal frames over pipes or a socketpair** (rspec-core's bisect channel). `Marshal.load` on bytes from another process reconstructs arbitrary objects, and rows have to be rebuilt for the parent's formatters anyway. Measured with `bin/ipc_bench` (one worker streaming 100k realistic 612-byte rows, single runs on a loaded machine, Ruby 2.7.8 / 3.4.8): JSON lines over a pipe 2.0–4.9 µs per row, Marshal frames over a pipe 7.3–16.4 µs, over a socketpair 9.5–11.6 µs, DRb over a unix socket 160–396 µs per call (5.8–14.2 µs when batching 100 rows per call). A 151k-example suite produces 151k rows: under 1 s of IPC CPU out of ~1,000 s. The transport is not where the time goes.
-- **Ractors.** RSpec cannot run inside one: on Ruby 3.4.8, `RSpec.describe` in a Ractor fails with "defined with an un-shareable Proc in a different Ractor" and reading `RSpec.world` raises `Ractor::IsolationError` on rspec-core's globals. Ractors are also still experimental, share `ENV`, the working directory and every class-level monkey patch with each other (test suites rely on process isolation for exactly those), and need Ruby ≥ 3.0 where this gem supports 2.4.
+- **Marshal frames over pipes or a socketpair** (rspec-core's bisect channel). `Marshal.load` on bytes from another process reconstructs arbitrary objects, and rows have to be rebuilt for the parent's formatters anyway. Measured with `bin/ipc_bench` (one forked worker streaming 100k synthetic 539-byte rows to a parent that parses each; wall time per row in the parent; single runs on a loaded machine, Ruby 2.7.8 / 3.4.8): JSON lines over a pipe 1.8–3.8 µs per row, Marshal frames over a pipe 7.1–7.6 µs, over a socketpair 7.1–11.0 µs, DRb over a unix socket 115–152 µs per call (3.5–4.9 µs when batching 100 rows per call). Extrapolated to the 151k-example suite above (at least one row per example), JSON framing is on the order of 0.3–0.6 s of a ~1,000 s run. The transport is not where the time goes.
+- **Ractors.** RSpec cannot run inside one on the versions tested: on Ruby 3.4.8 with rspec-core 3.12/3.13, `RSpec.describe` in a Ractor fails with "defined with an un-shareable Proc in a different Ractor" and reading `RSpec.world` raises `Ractor::IsolationError` on rspec-core's globals. Ractors are also still experimental, share `ENV`, the working directory and every class-level monkey patch with each other (test suites rely on process isolation for exactly those), and need Ruby ≥ 3.0 where this gem supports 2.4.
 - **Threads or fibers** for the workers. The GVL serialises Ruby code, and `Timecop`, `ENV`, `Dir.chdir` and class-level state are process-wide; rspec-core declined threaded runners for these reasons (rspec/rspec-core#1526, #1527). A fiber scheduler for the parent's I/O loop would need a scheduler gem; `IO.select` over a few dozen descriptors is enough.
 - **`Process.warmup` and `GC.compact`** are used: the preloader calls `Process.warmup` when it exists (Ruby ≥ 3.3) and falls back to a full GC plus `GC.compact`, so forked workers share as many pages as possible. Using `Process.fork` (not `spawn`) means `Process._fork` hooks fire, which is how ActiveRecord and SimpleCov notice the fork.
 
@@ -290,11 +290,13 @@ takes 17 s against 118 s serial. `bin/leak_check` (300 files through one worker,
 +0.3 % (spawn) over the last third of the run, live objects flat after a full GC.
 
 On a real application suite (private Rails 6.1 + Mongoid app, 1,645 spec files, 151,132 examples, Ruby 2.7.8, 8 workers,
-cold start with no runtime log, single runs on a laptop shared with other heavy jobs, so wall times are indicative):
-turbo_tests 2.2.4 378 s wall / 1,131 s CPU / 2.10 GB largest process; v3 fork 293 s / 1,086 s / 1.68 GB in a comparable
-load window (−23 % wall); 418 s on a v3 run under three times that load once a runtime log existed. flatware 2.3.4 took
-936 s at a much higher load, which is not comparable to either. Every runner reported the same examples and the same
-failures, and no worker hung. The first v3 run on that suite took 1,720 s because the example status file was rewritten
+cold start with no runtime log, single runs on a laptop shared with other heavy jobs, so these are observations rather
+than a controlled comparison): turbo_tests 2.2.4 378 s wall / 1,131 s CPU / 2.10 GB largest process; v3 fork 293 s /
+1,086 s / 1.68 GB in a comparable load window (an observed −23 % wall; CPU was within run-to-run noise, 964–1,086 s
+across identical v3 runs); 418 s on a v3 run under three times that load once a runtime log existed. flatware 2.3.4
+took 936 s at a much higher load, which is not comparable to either. Every run reported the same examples and the same
+two baseline failures; two of four v3 runs had additional failures that did not reproduce under serial `rspec` and are
+unresolved. No worker hung. The first v3 run on that suite took 1,720 s because the example status file was rewritten
 once per job; it is written once per run now (see above).
 
 ## Hooks

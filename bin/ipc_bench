@@ -22,13 +22,13 @@ N = (ARGV[0] || 100_000).to_i
 
 ROW = {
   "type" => "example",
-  "id" => "./spec/search/google/parser_spec.rb[1:2:3:4]",
-  "description" => "extracts the knowledge graph title when the header is present",
-  "full_description" => "Search::Google::Parser knowledge graph with a header extracts the knowledge graph title when the header is present",
+  "id" => "./spec/widgets/parser_spec.rb[1:2:3:4]",
+  "description" => "extracts the title when the header is present",
+  "full_description" => "Widgets::Parser with a header extracts the title when the header is present",
   "status" => "passed",
   "run_time" => 0.0123456,
-  "location" => "./spec/search/google/parser_spec.rb:123",
-  "file_path" => "./spec/search/google/parser_spec.rb",
+  "location" => "./spec/widgets/parser_spec.rb:123",
+  "file_path" => "./spec/widgets/parser_spec.rb",
   "line_number" => 123,
   "metadata" => {"type" => "model", "aggregate_failures" => true, "shared_group_inclusion_backtrace" => []},
   "pending_message" => nil,
