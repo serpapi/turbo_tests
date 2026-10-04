@@ -61,7 +61,7 @@ All notable changes to this project are documented here. The format follows
 - Removed DRb/Marshal-style designs from consideration; v3 uses JSON rows over pipes.
 - Removed arbitrary formatter constant evaluation through unrestricted `Kernel.const_get`.
 
-<!-- bench: add v3 benchmark table from the pull request -->
+Measurements: see the README's "How it works" section (`bin/benchmark`, `bin/leak_check`).
 
 ## [2.2.6] - unreleased
 

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    turbo_tests (2.2.5)
+    turbo_tests (3.0.0)
       rspec-core (>= 3.10)
 
 GEM
