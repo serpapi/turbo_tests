@@ -50,60 +50,455 @@ Finished in 2 minute 25.15 seconds (files took 0 seconds to load)
 6873 examples, 2 failures
 ```
 
-## Installation
+## Install
 
-Add this line to your application's `Gemfile`:
+Add the gem:
 
 ```ruby
 gem 'turbo_tests'
 ```
 
-And then execute:
+Then install:
 
 ```bash
-$ bundle install
+bundle install
 ```
 
-Or install it yourself as:
+Requirements:
 
-```bash
-$ gem install turbo_tests
-```
+| Item | Requirement |
+|---|---|
+| Ruby | `>= 2.4` |
+| Runtime dependency | `rspec-core >= 3.10` |
+| Not required | `parallel_tests` |
 
 ## Usage
 
-Execute tests:
+Run the suite:
 
 ```bash
-$ bundle exec turbo_tests
+bundle exec turbo_tests
 ```
 
-Show help:
+Set workers:
 
 ```bash
-$ bundle exec turbo_tests -h
-Usage: turbo_tests [options]
+bundle exec turbo_tests -n 8
+```
+
+Select files and directories:
+
+```bash
+bundle exec turbo_tests spec/models spec/services/user_spec.rb
+```
+
+Select a line:
+
+```bash
+bundle exec turbo_tests spec/services/user_spec.rb:42
+```
+
+Pass options to RSpec after `--`:
+
+```bash
+bundle exec turbo_tests -n 4 -- --example "creates a user"
+```
+
+Pass RSpec options and then more files after a second `--`:
+
+```bash
+bundle exec turbo_tests -- --format documentation -- spec/models/user_spec.rb
+```
+
+v3 option set:
+
+```text
+Run RSpec in parallel workers, giving each ENV['TEST_ENV_NUMBER'] ('', '2', '3', ...).
+
+Reports test results incrementally. Source code of `turbo_tests` gem is based on Discourse and RubyGems work in this area (see README file of the source repository).
+
+Usage: turbo_tests [options] [files or directories] [-- rspec options [-- files]]
 
 [optional] Only selected files & folders:
   turbo_tests spec/bar spec/baz/xxx_spec.rb
 
 Options:
-    -n [PROCESSES]                   How many processes to use, default: available CPUs
-    -r, --require PATH               Require a file.
-    -f, --format FORMATTER           Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress
-    -t, --tag TAG                    Run examples with the specified tag.
-    -o, --out FILE                   Write output to a file instead of $stdout
-        --runtime-log FILE           Location of previously recorded test runtimes
-    -v, --verbose                    More output
-        --fail-fast=[N]
-        --seed SEED                  Seed for rspec
+    -n, -w, --workers N             How many workers to use, default: PARALLEL_TEST_PROCESSORS or available CPUs
+    -r, --require PATH              Require a file in the parent process (e.g. a custom formatter).
+    -f, --format FORMATTER          Choose a formatter. Available formatters: progress (p), documentation (d). Default: progress
+    -o, --out FILE                  Write output to a file instead of $stdout
+    -t, --tag TAG                   Run examples with the specified tag.
+        --seed SEED                 Seed for rspec (forces random order, as in rspec)
+        --order TYPE                Forwarded to rspec: defined, rand[:SEED], random[:SEED], recently-modified
+        --fail-fast=[N]             Stop dispatching and interrupt workers after N failures (default 1)
+        --pattern PATTERN           Load files matching pattern (rspec --pattern)
+        --exclude-pattern PATTERN   Skip files matching pattern (rspec --exclude-pattern)
+        --default-path PATH         Directory used when no files are given (rspec --default-path)
+        --group-by TYPE             Weights for scheduling: runtime (default), filesize, found
+        --only-group LIST           Split files into static groups and run only these (1-based, e.g. 2,3)
+        --groups N                  Number of static groups (default: number of workers)
+        --runtime-log FILE          Location of previously recorded test runtimes
+        --no-runtime-log            Do not record runtimes after the run
+        --record-runtime            Record runtimes after the run (default)
+        --first-is-1                First worker gets TEST_ENV_NUMBER=1 (default: auto-detect)
+        --first-is-blank            First worker gets TEST_ENV_NUMBER='' (default: auto-detect)
+        --nice                      Run workers with lower CPU priority
+        --preload FILE              File the fork preloader requires before forking (default: .rspec --require files)
+        --pool TYPE                 Worker pool: auto (default), fork, spawn, command
+        --static                    Split files into one static group per worker (2.x scheduling)
+        --exit-timeout SECONDS      Kill workers that do not exit SECONDS after finishing (default 60, 0 = wait forever)
+        --diagnose                  Collect extra diagnostics (perf/bpftrace when available) for hung workers
+        --print-failed-group        Print a command that reruns the files of failed jobs
+        --profile=[N]               Show the N slowest examples and groups (default 10)
+        --only-failures             Run only examples that failed last time (rspec --only-failures)
+        --next-failure              rspec --next-failure: --only-failures --fail-fast --order defined
+    -v, --verbose                   More output
+        --test-options OPTIONS      Extra rspec options as one string (parallel_rspec compatible)
+        --no-rake-hooks             Do not run turbo_tests:setup / turbo_tests:cleanup rake tasks
+        --version                   Print version
+    -h, --help                      Show this help
 ```
+
+## Swap in
+
+### From plain `rspec`
+
+Replace the executable:
+
+```bash
+bundle exec rspec spec/models/user_spec.rb:42
+bundle exec turbo_tests spec/models/user_spec.rb:42
+```
+
+RSpec discovery is used. `.rspec`, `.rspec-local`, `SPEC_OPTS`, `--default-path`, `--pattern`, and `--exclude-pattern` are honoured. `spec_helper` is not loaded in the parent while discovering files.
+
+### From `parallel_tests` / `parallel_rspec`
+
+Keep the common flags:
+
+```bash
+bundle exec parallel_rspec -n 8 --pattern "spec/**/*_spec.rb" --exclude-pattern "spec/system/**/*_spec.rb"
+bundle exec turbo_tests -n 8 --pattern "spec/**/*_spec.rb" --exclude-pattern "spec/system/**/*_spec.rb"
+```
+
+Compatibility map:
+
+| `parallel_tests` input | `turbo_tests` behaviour |
+|---|---|
+| `-n N` | worker count |
+| `--pattern`, `--exclude-pattern` | RSpec file discovery |
+| `--group-by runtime|filesize|found` | scheduler weight |
+| `--only-group 2`, `--groups 8` | static group selection for CI shards |
+| `--test-options "..."` | split as RSpec options |
+| `.rspec_parallel`, `spec/parallel_spec.opts`, `spec/spec.opts` | read when no explicit `--options` is passed after `--` |
+| `PARALLEL_TEST_PROCESSORS` | default worker count |
+| `PARALLEL_TEST_FIRST_IS_1=true` | first worker gets `TEST_ENV_NUMBER=1` |
+| `tmp/parallel_runtime_rspec.log` | read when present |
+| `tmp/turbo_rspec_runtime.log` | default runtime log written by `turbo_tests` |
+
+Create Rails databases with the same rake task:
+
+```bash
+PARALLEL_TEST_FIRST_IS_1=true bundle exec rake parallel:create
+bundle exec turbo_tests --first-is-1
+```
+
+or the blank-first convention:
+
+```bash
+bundle exec rake parallel:create
+bundle exec turbo_tests --first-is-blank
+```
+
+`TEST_ENV_NUMBER` is auto-detected for Rails + ActiveRecord when possible. The banner prints the chosen values.
+
+### From `flatware`
+
+A leading `rspec` token is ignored, so the RSpec form ports directly:
+
+```bash
+bundle exec flatware rspec -w 8 spec -- --tag focus
+bundle exec turbo_tests rspec -w 8 spec -- --tag focus
+```
+
+Hook mapping:
+
+```ruby
+# .turbo_tests.rb
+TurboTests.configure do |config|
+  config.before_fork { ActiveRecord::Base.connection_handler.clear_all_connections! }
+  config.after_fork { |worker| ActiveRecord::Base.establish_connection(:test) }
+end
+```
+
+Differences:
+
+| Area | Difference |
+|---|---|
+| Documentation formatter | output is replayed by the parent formatter from JSON rows |
+| Windows | uses spawn or command pools, not fork |
+| DRb socket file | none; transport is JSON rows over pipes |
+
+## How it works
+
+```text
+parent CLI
+  -> file discovery
+  -> scheduler: dynamic per-file queue, largest runtime first
+  -> pool: fork preloader on MRI Unix, spawn elsewhere, command for v2-style rspec commands
+  -> workers emit JSON rows over pipes
+  -> supervisor tracks booting/ready/busy/shutdown/exited
+  -> reporter replays one RSpec-looking stream
+```
+
+Runtime logs are always read when present and recorded after runs unless `--no-runtime-log` is set. The log format is `path:seconds` and is compatible with `parallel_tests`.
+
+Shutdown is bounded. After RSpec finishes, a worker that will not exit gets a `SIGUSR1` thread dump, diagnostics, `TERM`, then `KILL`; the run exits nonzero.
+
+Exit status is `0` only when examples pass and no worker hangs, crashes, or reports an error outside examples. Otherwise it is the maximum RSpec worker status or `1`. A run stopped by Ctrl-C exits `130` (a second Ctrl-C kills the workers immediately), one stopped by `SIGTERM` exits `143`. `--pool command` runs one `rspec` process per static group, so it needs `--groups` ≤ `-n` (the default).
+
+<!-- bench: add v3 benchmark summary from the pull request -->
+
+## Hooks
+
+Create `.turbo_tests.rb` in the project root:
+
+```ruby
+TurboTests.configure do |config|
+  config.before_fork do
+    ActiveRecord::Base.connection_handler.clear_all_connections! if defined?(ActiveRecord::Base)
+  end
+
+  config.after_fork do |worker_number|
+    ActiveRecord::Base.establish_connection(:test) if defined?(ActiveRecord::Base)
+  end
+end
+```
+
+Defaults cover common Rails + ActiveRecord and SimpleCov fork cases. In the fork pool, SimpleCov uses `SimpleCov.at_fork.call(worker_number)` when available. macOS gets `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` for the preloader unless already set.
+
+Use escape hatches when a suite is not fork-safe:
+
+```bash
+bundle exec turbo_tests --pool spawn
+bundle exec turbo_tests --pool command --static
+```
+
+For `pg` in forked workers, try:
+
+```bash
+PGGSSENCMODE=disable bundle exec turbo_tests
+```
+
+Thread pools, connection pools, and clients opened before fork are inherited. Close them in `before_fork` and reconnect in `after_fork`.
+
+## Databases and TEST_ENV_NUMBER
+
+Worker 1 is chosen once per run:
+
+| Input | Worker 1 |
+|---|---|
+| `--first-is-1` | `1` |
+| `PARALLEL_TEST_FIRST_IS_1=true` | `1` |
+| `--first-is-blank` | blank |
+| Rails + ActiveRecord auto-detect finds the `1` database | `1` |
+| Rails + ActiveRecord auto-detect finds only the blank database | blank |
+| no Rails + ActiveRecord probe | blank |
+| command pool | blank unless forced |
+
+Workers 2..N get `2`, `3`, ...
+
+The banner shows the decision:
+
+```text
+4 workers (fork) for 120 spec files
+TEST_ENV_NUMBER: "", 2, 3, 4
+```
+
+or:
+
+```text
+4 workers (fork) for 120 spec files
+TEST_ENV_NUMBER: 1, 2, 3, 4
+```
+
+Provision blank-first databases:
+
+```bash
+bundle exec rake parallel:create
+bundle exec turbo_tests --first-is-blank
+```
+
+Provision one-based databases:
+
+```bash
+PARALLEL_TEST_FIRST_IS_1=true bundle exec rake parallel:create
+bundle exec turbo_tests --first-is-1
+```
+
+Project hooks can wrap the run:
+
+```ruby
+# Rakefile
+namespace :turbo_tests do
+  task :setup do
+    Rake::Task["parallel:create"].invoke
+  end
+
+  task :cleanup do
+    # collate reports, remove scratch files, etc.
+  end
+end
+```
+
+Disable them:
+
+```bash
+bundle exec turbo_tests --no-rake-hooks
+```
+
+## Coverage (SimpleCov)
+
+Fork pool: a single merged report falls out of the preloader/fork setup when `SimpleCov.at_fork` is available.
+
+Spawn and command pools: give each worker a command name and collate in cleanup:
+
+```ruby
+# spec/spec_helper.rb
+require "simplecov"
+
+SimpleCov.command_name("turbo_tests-#{ENV.fetch('TEST_ENV_NUMBER', 'blank')}")
+SimpleCov.start
+```
+
+```ruby
+# Rakefile
+namespace :turbo_tests do
+  task :cleanup do
+    require "simplecov"
+    SimpleCov.collate Dir["coverage/.resultset*.json"]
+  end
+end
+```
+
+## CI sharding
+
+Use static groups to split across CI jobs:
+
+```bash
+bundle exec turbo_tests --groups 4 --only-group 1 --runtime-log tmp/parallel_runtime_rspec.log
+bundle exec turbo_tests --groups 4 --only-group 2 --runtime-log tmp/parallel_runtime_rspec.log
+bundle exec turbo_tests --groups 4 --only-group 3 --runtime-log tmp/parallel_runtime_rspec.log
+bundle exec turbo_tests --groups 4 --only-group 4 --runtime-log tmp/parallel_runtime_rspec.log
+```
+
+Cache the runtime log as a CI artifact. On the next run, `turbo_tests` reads it, dispatches heavy files first, and records updated timings.
+
+<!-- bench: add CI sharding measurement from the pull request -->
+
+## Formatters
+
+Built-ins:
+
+```bash
+bundle exec turbo_tests -f progress
+bundle exec turbo_tests -f documentation
+bundle exec turbo_tests -f json -o tmp/rspec.json
+```
+
+Custom formatters need `-r` and a formatter class name:
+
+```bash
+bundle exec turbo_tests -r fuubar -f Fuubar
+bundle exec turbo_tests -r rspec_junit_formatter -f RspecJunitFormatter -o tmp/rspec.xml
+```
+
+Formatter names are constrained to loaded constant paths. Arbitrary expressions are not evaluated.
+
+## When a worker will not exit
+
+A stuck worker fails the run on purpose. The message names the worker and files:
+
+```text
+Worker 3 did not exit 60s after finishing RSpec; killed. Files: spec/models/user_spec.rb spec/jobs/sync_spec.rb
+```
+
+The worker writes a thread dump before it is killed:
+
+```text
+TurboTests diagnostics for pid 12345
+Thread #<Thread:0x000... sleep> status=sleep native_thread_id=...
+  spec/support/background_worker.rb:12:in `sleep'
+  spec/support/background_worker.rb:12:in `block in start'
+Live objects: Thread=8 IO=24
+Open file descriptors: ...
+```
+
+Use a shorter timeout while reproducing:
+
+```bash
+bundle exec turbo_tests --exit-timeout 5
+```
+
+Add parent-side diagnostics when available:
+
+```bash
+bundle exec turbo_tests --diagnose
+```
+
+`--exit-timeout 0` waits forever and restores the old unbounded wait.
+
+## FAQ
+
+| Question | Answer |
+|---|---|
+| When is the seed printed? | When any worker reports random ordering was used. Defined-order suites do not print seed text. |
+| Does `--seed` reproduce across workers? | Yes. One seed is shared through `TURBO_TESTS_SEED` and forwarded to RSpec when the user passes `--seed`. |
+| Is `--profile` per worker? | No. Worker profile rows are merged into one top-N report. |
+| Are deprecations repeated per worker? | No. Duplicate deprecations are replayed once in the parent. |
+| Is "All examples were filtered out" repeated? | No. It is printed once. |
+| Does Windows work? | Use spawn or command pools. Fork is Unix-only. |
+| Does JRuby or TruffleRuby work? | Use spawn or command pools. Their CI legs are non-gating until green. |
+| What about `turbo_tests2`? | v3 acknowledges the [`turbo_tests2`](https://github.com/galtzo-floss/turbo_tests2) fork and adopts the community PR ideas listed in the changelog. |
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+Install dependencies:
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```bash
+bundle install
+```
+
+Run tests:
+
+```bash
+bundle exec rspec
+```
+
+Dogfood the CLI:
+
+```bash
+bin/turbo_tests -n4 spec
+```
+
+Run local tools:
+
+```bash
+bin/benchmark              # serial rspec vs released 2.2.5 vs the local pools, median of 5
+bin/leak_check             # 300 generated files through one long-lived worker; fails if RSS keeps growing
+bin/check_ruby24_syntax    # parses lib/ and bin/ with the Ruby 2.4 grammar
+```
+
+`TURBO_TESTS_GC_STAT_EVERY=50` makes a worker run a full GC every 50 jobs and print `GC.stat` counters to stderr,
+which tells retained objects apart from heap growth.
+
+## Releasing
+
+Maintainers only:
+
+1. Bump `lib/turbo_tests/version.rb`.
+2. Tag with the `tag_and_release` workflow.
+3. Keep the 2.x line on `2-x-stable`.
 
 ## Contributing
 
