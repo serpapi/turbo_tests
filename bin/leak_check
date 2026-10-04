@@ -26,7 +26,7 @@ def generate_suite
       body << "  include_examples 'payload use'\n"
     end
     3.times do |example|
-      body << "  it('example #{example + 1}') { expect(#{example + 1}).to be > 0 }\n"
+      body << "  it('example #{example + 1}') { sleep 0.02; expect(#{example + 1}).to be > 0 }\n"
     end
     body << "end\n"
     write_file(File.join(SUITE, "spec", "case_%03d_spec.rb" % (idx + 1)), body)
@@ -40,6 +40,20 @@ rescue Errno::ENOENT
   []
 end
 
+# The worker is a child of turbo_tests (spawn pool) or a grandchild through
+# the preloader (fork pool): take the deepest descendant.
+def deepest_descendant(pid)
+  current = pid
+  depth = 0
+  while depth < 5
+    children = child_pids(current)
+    break if children.empty?
+    current = children.first
+    depth += 1
+  end
+  depth.zero? ? nil : current
+end
+
 def rss_kb(pid)
   out, status = Open3.capture2e("ps", "-o", "rss=", "-p", pid.to_s)
   return nil unless status.success?
@@ -47,6 +61,9 @@ def rss_kb(pid)
 end
 
 def growth_percent(samples)
+  # Only the samples of the process that was measured last (the worker).
+  final_pid = samples.last && samples.last[:pid]
+  samples = samples.select { |sample| sample[:pid] == final_pid }
   rss = samples.map { |sample| sample[:rss_kb] }.compact
   return nil if rss.length < 6
   third = rss.length / 3
@@ -59,7 +76,12 @@ def growth_percent(samples)
 end
 
 def run_pool(pool)
-  cmd = [RbConfig.ruby, "-I", "lib", "bin/turbo_tests", "--pool", pool, "-n", "1", File.join("fixtures", "benchmark", "leak_300")]
+  # Run from the fixture directory so the repository's own .rspec (which
+  # requires the gem's spec_helper and bundler/setup) does not apply.
+  # One job per file: a recorded runtime log would pack the tiny files into
+  # ~1s jobs and the worker would only see a handful of them.
+  FileUtils.rm_rf(File.join(SUITE, "tmp"))
+  cmd = [RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"), "--pool", pool, "-n", "1", "--no-runtime-log", "spec"]
   env = { "TURBO_TESTS_GC_STAT_EVERY" => "50" }
   samples = []
   gc_lines = []
@@ -67,7 +89,7 @@ def run_pool(pool)
   stdout = +""
   status = nil
 
-  Open3.popen3(env, *cmd, chdir: ROOT) do |_stdin, out, err, wait_thr|
+  Open3.popen3(env, *cmd, chdir: File.join(ROOT, "fixtures", "benchmark", "leak_300")) do |_stdin, out, err, wait_thr|
     pid = wait_thr.pid
     worker_pid = nil
     readers = [out, err]
@@ -87,12 +109,14 @@ def run_pool(pool)
           end
         end
       end
-      worker_pid ||= child_pids(pid).first
+      # Re-resolve every sample: right after start the deepest descendant is
+      # the preloader, whose worker has not been forked yet.
+      worker_pid = deepest_descendant(pid) || worker_pid
       rss = rss_kb(worker_pid) if worker_pid
       samples << { at: Time.now.to_f, pid: worker_pid, rss_kb: rss } if rss
       finished = wait_thr.join(0)
       status = finished.value if finished
-      sleep 2 unless status
+      sleep 0.25 unless status
     end
   end
 

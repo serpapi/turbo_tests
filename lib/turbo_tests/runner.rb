@@ -1,254 +1,211 @@
 # frozen_string_literal: true
 
 require "json"
-require "parallel_tests/rspec/runner"
-
-require_relative "../utils/hash_extension"
+require "etc"
 
 module TurboTests
+  # Glue: Files -> RuntimeLog -> Scheduler -> Pool -> Supervisor -> exit status.
   class Runner
-    using CoreExtensions
+    BUILT_IN_FORMATTERS = %w[p progress d doc documentation j json f failures].freeze
 
+    # Accepts Options or the 2.x keyword hash (formatters:, tags:, files:,
+    # runtime_log:, verbose:, fail_fast:, count:, seed:, start_time:).
     def self.run(opts = {})
-      files = opts[:files]
-      formatters = opts[:formatters]
-      tags = opts[:tags]
-
-      start_time = opts.fetch(:start_time) { RSpec::Core::Time.now }
-      runtime_log = opts.fetch(:runtime_log, nil)
-      verbose = opts.fetch(:verbose, false)
-      fail_fast = opts.fetch(:fail_fast, nil)
-      count = opts.fetch(:count, nil)
-      seed = opts.fetch(:seed)
-      seed_used = !seed.nil?
-
-      if verbose
-        warn "VERBOSE"
-      end
-
-      reporter = Reporter.from_config(formatters, start_time, seed, seed_used)
-
-      new(
-        reporter: reporter,
-        files: files,
-        tags: tags,
-        runtime_log: runtime_log,
-        verbose: verbose,
-        fail_fast: fail_fast,
-        count: count,
-        seed: seed,
-        seed_used: seed_used,
-      ).run
+      options = opts.is_a?(Options) ? opts : Options.from_hash(opts)
+      new(options).run
     end
 
-    def initialize(opts)
-      @reporter = opts[:reporter]
-      @files = opts[:files]
-      @tags = opts[:tags]
-      @runtime_log = opts[:runtime_log] || "tmp/turbo_rspec_runtime.log"
-      @verbose = opts[:verbose]
-      @fail_fast = opts[:fail_fast]
-      @count = opts[:count]
-      @seed = opts[:seed]
-      @seed_used = opts[:seed_used]
-
-      @load_time = 0
-      @load_count = 0
-      @failure_count = 0
-
-      @messages = Thread::Queue.new
-      @threads = []
-      @error = false
+    def initialize(options, out: $stdout, err: $stderr)
+      @options = options
+      @out = out
+      @err = err
+      @options.start_time ||= RSpec::Core::Time.now
+      @options.workers ||= default_workers
+      @options.formatters = [{name: "progress", outputs: ["-"]}] if @options.formatters.nil? || @options.formatters.empty?
     end
 
     def run
-      @num_processes = [
-        ParallelTests.determine_number_of_processes(@count),
-        ParallelTests::RSpec::Runner.tests_with_size(@files, {}).size
-      ].min
+      rspec_options = Files.rspec_options(@options.rspec_args)
+      entries = Files.resolve(@options)
+      @seed = pick_seed(rspec_options)
+      @pool_name = Pool.resolve(@options)
+      @job_args = job_args(rspec_options)
 
-      use_runtime_info = @files == ["spec"]
+      reporter = Reporter.from_config(@options.formatters, @options.start_time, @seed, @options.seed_forced?)
+      configure_reporter(reporter)
 
-      group_opts = {}
+      _runtime_path, runtimes = RuntimeLog.load_first(RuntimeLog.candidates(@options))
+      scheduler = build_scheduler(entries, runtimes)
+      workers = [@options.workers.to_i, scheduler.size].min
+      return run_without_workers(reporter, scheduler) if workers < 1
 
-      if use_runtime_info
-        group_opts[:runtime_log] = @runtime_log
-      else
-        group_opts[:group_by] = :filesize
+      pool = Pool.class_for(@pool_name).new(@options, workers: workers, env_base: env_base)
+      pool.first_env_number = EnvNumber.forced(@options.first_is_1) || (@pool_name == :command ? "" : nil)
+      supervisor = Supervisor.new(pool, scheduler, reporter, @options, job_args: @job_args, out: @out, err: @err)
+      begin
+        supervisor.boot(wait_for_config: @options.only_failures && @pool_name != :command)
+        if @options.only_failures && @pool_name != :command && !supervisor.aborted?
+          scheduler = only_failures(entries, runtimes, supervisor.config_row, scheduler)
+          supervisor.scheduler = scheduler
+        end
+      rescue Exception # rubocop:disable Lint/RescueException
+        supervisor.emergency_stop
+        raise
       end
 
-      tests_in_groups =
-        ParallelTests::RSpec::Runner.tests_in_groups(
-          @files,
-          @num_processes,
-          **group_opts
-        )
-
-      subprocess_opts = {
-        record_runtime: use_runtime_info,
+      info = {
+        workers: workers,
+        pool: @pool_name.to_s,
+        files: scheduler.entries_count,
+        test_env_numbers: supervisor.test_env_numbers || EnvNumber.numbers("", workers),
+        tags: @options.tags,
+        example_count: expected_example_count(scheduler)
       }
-
-      @reporter.report(tests_in_groups) do |reporter|
-        wait_threads = tests_in_groups.map.with_index do |tests, process_id|
-          start_regular_subprocess(tests, process_id + 1, **subprocess_opts)
-        end
-
-        handle_messages
-
-        @threads.each(&:join)
-
-        if @reporter.failed_examples.empty? && wait_threads.map(&:value).all?(&:success?)
-          0
-        else
-          # From https://github.com/serpapi/turbo_tests/pull/20/
-          wait_threads.map { |thread| thread.value.exitstatus }.max
-        end
-      end
+      status = reporter.report(info) { supervisor.run }
+      save_runtimes(supervisor.runtimes)
+      status
     end
 
     private
 
-    def start_regular_subprocess(tests, process_id, **opts)
-      start_subprocess(
-        {"TEST_ENV_NUMBER" => process_id.to_s},
-        @tags.map { |tag| "--tag=#{tag}" },
-        tests,
-        process_id,
-        **opts
-      )
+    def default_workers
+      from_env = ENV["PARALLEL_TEST_PROCESSORS"].to_s
+      return from_env.to_i if from_env =~ /\A\s*\d+\s*\z/ && from_env.to_i > 0
+
+      Etc.nprocessors
     end
 
-    def start_subprocess(env, extra_args, tests, process_id, record_runtime:)
-      if tests.empty?
-        @messages << {
-          type: "exit",
-          process_id: process_id,
-        }
-      else
-        env["RSPEC_FORMATTER_OUTPUT_ID"] = SecureRandom.uuid
-        env["RUBYOPT"] = ["-I#{File.expand_path("..", __dir__)}", ENV["RUBYOPT"]].compact.join(" ")
-        env["RSPEC_SILENCE_FILTER_ANNOUNCEMENTS"] = "1"
+    def configure_reporter(reporter)
+      reporter.run_options = @options.tags if reporter.respond_to?(:run_options=)
+      reporter.profile_examples = @options.profile if @options.profile && reporter.respond_to?(:profile_examples=)
+      reporter.fail_fast = @options.fail_fast if @options.fail_fast && reporter.respond_to?(:fail_fast=)
+    end
 
-        if ENV["RSPEC_EXECUTABLE"]
-          command_name = ENV["RSPEC_EXECUTABLE"].split
-        elsif ENV["BUNDLE_BIN_PATH"]
-          command_name = [ENV["BUNDLE_BIN_PATH"], "exec", "rspec"]
-        else
-          command_name = "rspec"
-        end
+    # The parent's seed is shared by every worker (TURBO_TESTS_SEED) and only
+    # forces random order when the user asked for it (--seed / --order rand).
+    def pick_seed(rspec_options)
+      return Integer(@options.seed) if @options.seed
 
-        record_runtime_options =
-          if record_runtime
-            [
-              "--format", "ParallelTests::RSpec::RuntimeLogger",
-              "--out", @runtime_log,
-            ]
-          else
-            []
-          end
-
-        seed_option = if @seed_used
-          [
-            "--seed", @seed,
-          ]
-        else
-          []
-        end
-
-        command = [
-          *command_name,
-          *extra_args,
-          *seed_option,
-          "--format", "TurboTests::JsonRowsFormatter",
-          *record_runtime_options,
-          *tests,
-        ]
-
-        if @verbose
-          command_str = [
-            env.map { |k, v| "#{k}=#{v}" }.join(" "),
-            command.join(" "),
-          ].select { |x| x.size > 0 }.join(" ")
-
-          warn "Process #{process_id}: #{command_str}"
-        end
-
-        stdin, stdout, stderr, wait_thr = Open3.popen3(env, *command)
-        stdin.close
-
-        @threads <<
-          Thread.new do
-            reader = Protocol::Reader.new(env["RSPEC_FORMATTER_OUTPUT_ID"])
-            stdout.each_line do |line|
-              reader.parse_line(line).each do |kind, value|
-                if kind == :output
-                  print(value) unless value.empty?
-                else
-                  value[:process_id] = process_id
-                  @messages << value
-                end
-              end
-            end
-
-            @messages << { type: "exit", process_id: process_id }
-          end
-
-        @threads << start_copy_thread(stderr, STDERR)
-
-        @threads << Thread.new do
-          unless wait_thr.value.success?
-            @messages << { type: "error" }
-          end
-        end
-
-        wait_thr
+      [@options.order, rspec_options[:order]].each do |order|
+        match = /rand(?:om)?:(\d+)/.match(order.to_s)
+        return match[1].to_i if match
       end
+      rand(0xFFFF)
     end
 
-    def start_copy_thread(src, dst)
-      Thread.new do
-        loop do
-          msg = src.readpartial(4096)
-        rescue EOFError
-          src.close
-          break
-        else
-          dst.write(msg)
-        end
+    def job_args(rspec_options)
+      args = @options.rspec_args.dup
+      @options.tags.each { |tag| args.push("--tag", tag) }
+      if @options.order
+        args.push("--order", @options.random_order? ? "rand:#{@seed}" : @options.order)
       end
-    end
-
-    def handle_messages
-      exited = 0
-
-      loop do
-        message = @messages.pop
-        case message[:type]
-        when "error"
-          # Do nothing
-          nil
-        when "exit"
-          exited += 1
-          if exited == @num_processes
-            break
-          end
-        else
-          if @reporter.handle(message) == :failure
-            @failure_count += 1
-            if fail_fast_met
-              @threads.each(&:kill)
-              break
-            end
-          end
-        end
-
-        STDOUT.flush
+      args.push("--seed", @seed.to_s) if @options.seed
+      if @pool_name == :command && !@options.seed_forced? && rspec_options[:order].to_s =~ /\Arand(?:om)?\z/
+        args.push("--seed", @seed.to_s)
       end
-    rescue Interrupt
+      args.push("--profile", @options.profile.to_s) if @options.profile
+      args.push("--only-failures") if @options.only_failures
+      args.push("--format", Worker::FORMATTER)
+      args
     end
 
-    def fail_fast_met
-      !@fail_fast.nil? && @failure_count >= @fail_fast
+    def env_base
+      {
+        "TURBO_TESTS_SEED" => @seed.to_s,
+        "TURBO_TESTS_EXIT_TIMEOUT" => @options.exit_timeout.to_f.to_s,
+        "TURBO_TESTS_RSPEC_ARGS" => JSON.generate(@job_args),
+        "TURBO_TESTS_VERBOSE" => @options.verbose ? "1" : nil,
+        "TURBO_TESTS_NICE" => @options.nice ? "1" : nil,
+        "TURBO_TESTS_PROBE" => nil,
+        "TURBO_TESTS_PRELOAD" => nil,
+        "TURBO_TESTS_FIRST_ENV_NUMBER" => nil,
+        "TURBO_TESTS_CONTROL_FD" => nil,
+        "TURBO_TESTS_PIPES" => nil,
+        "TURBO_TESTS_EXIT_WATCHDOG" => nil,
+        "RUBYOPT" => rubyopt
+      }
+    end
+
+    def rubyopt
+      opt = ENV["RUBYOPT"].to_s
+      if defined?(::Bundler) && ENV["BUNDLE_GEMFILE"] && opt !~ %r{bundler/setup}
+        opt = "-rbundler/setup #{opt}".strip
+      end
+      opt.empty? ? nil : opt
+    end
+
+    def build_scheduler(entries, runtimes)
+      mode = @options.static || !@options.only_group.empty? || @pool_name == :command ? :static : :dynamic
+      validate_only_group
+      scheduler = Scheduler.new(entries, runtimes,
+        workers: @options.workers, mode: mode, groups: @options.groups, only_group: @options.only_group,
+        group_by: @options.group_by)
+      return scheduler unless @pool_name == :command && !@options.only_group.empty?
+
+      # One rspec process per group: re-split the selected files.
+      Scheduler.new(scheduler.files.map { |file| [file] }, runtimes,
+        workers: @options.workers, mode: :static, group_by: @options.group_by)
+    end
+
+    def validate_only_group
+      groups = @options.groups || @options.workers
+      if @pool_name == :command && @options.groups && @options.only_group.empty? && @options.groups > @options.workers.to_i
+        raise Error, "--pool command runs one rspec process per group and cannot run #{@options.groups} groups " \
+                     "on #{@options.workers} workers; use --groups #{@options.workers} or another pool"
+      end
+      return if @options.only_group.empty?
+
+      invalid = @options.only_group.select { |group| group > groups }
+      return if invalid.empty?
+
+      raise Error, "--only-group #{invalid.join(",")} is out of range: there are #{groups} groups (see --groups)"
+    end
+
+    # Files without a failure recorded in the persistence file are skipped
+    # in the parent: rspec's own --only-failures would run every example of
+    # a file it is handed when none of them failed.
+    def only_failures(entries, runtimes, config_row, scheduler)
+      path = config_row && config_row[:example_status_persistence_file_path]
+      unless path
+        @err.puts "turbo_tests: --only-failures needs config.example_status_persistence_file_path; running every file"
+        return scheduler
+      end
+
+      failed = failed_files(path)
+      selected = entries.select { |entry| failed.include?(RuntimeLog.normalize(Files.path_of(entry.first))) }
+      build_scheduler(selected, runtimes)
+    end
+
+    def failed_files(path)
+      return [] unless File.file?(path)
+
+      RSpec::Core::ExampleStatusPersister.load_from(path).select { |row| row[:status].to_s == "failed" }.map do |row|
+        RuntimeLog.normalize(row[:example_id].to_s.sub(/\[[\d:,\s]*\]\z/, ""))
+      end.uniq
+    rescue SystemCallError, IOError => e
+      @err.puts "turbo_tests: could not read #{path}: #{e.message}"
+      []
+    end
+
+    def expected_example_count(scheduler)
+      custom = @options.formatters.any? { |formatter| !BUILT_IN_FORMATTERS.include?(formatter[:name].to_s) }
+      return nil unless custom && Reporter.respond_to?(:count_examples)
+
+      Reporter.count_examples(scheduler.files, @job_args)
+    end
+
+    def run_without_workers(reporter, scheduler)
+      info = {workers: 0, pool: @pool_name.to_s, files: scheduler.entries_count, test_env_numbers: [], tags: @options.tags,
+              example_count: 0}
+      reporter.report(info) { nil }
+      success = reporter.respond_to?(:success?) ? reporter.success? : reporter.failed_examples.empty?
+      success ? 0 : 1
+    end
+
+    def save_runtimes(runtimes)
+      return if @options.record_runtime == false || runtimes.empty?
+
+      RuntimeLog.save(RuntimeLog.save_path(@options), runtimes)
     end
   end
 end
