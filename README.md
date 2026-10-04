@@ -262,13 +262,14 @@ Exit status is `0` only when examples pass and no worker hangs, crashes, or repo
 | suite | serial `rspec` | turbo_tests 2.2.5 | v3 fork | v3 spawn | v3 command |
 |---|---|---|---|---|---|
 | `uneven_8` (8 files, sleeps 4/0.2/3/0.2/2/0.2/1/0.2 s) | 11.05 s | 4.42 s | 4.29 s | 4.31 s | 4.39 s |
-| `uneven_64` (64 files, log-normal sleeps) | 27.43 s | 7.27 s | 7.42 s | 7.60 s | 7.23 s |
-| `slow_boot` (spec_helper sleeps 2 s, 8 files) | 2.22 s | 2.43 s | 2.32 s | 2.55 s | 2.33 s |
+| `uneven_64` (64 files, log-normal sleeps) | 27.43 s | 7.26 s | 7.45 s (7.14 s with `--static`) | 7.51 s | 7.23 s |
+| `slow_boot` (spec_helper sleeps 2 s, 8 files) | 2.22 s | 2.43 s | 2.33 s | 2.32 s | 2.33 s |
 | CPU user+sys on `uneven_64` | 0.20 s | 1.05 s | 0.39 s | 0.71 s | 0.86 s |
 | max RSS of the parent on `uneven_64` | 35 MB | 39 MB | 26 MB | 26 MB | 28 MB |
 
 Sleep-bound suites sit at the 4-worker bound in every configuration; the fork pool's gain on this hardware is CPU
-(one boot instead of N) and memory, not wall time. Running this repository's own suite through `bin/turbo_tests -n 8`
+(one boot instead of N) and memory, not wall time. Dynamic dispatch costs a few milliseconds per job, which shows on
+64 one-example files (`--static` removes it); it pays off when file runtimes are uneven and not yet recorded. Running this repository's own suite through `bin/turbo_tests -n 8`
 takes 17 s against 118 s serial. `bin/leak_check` (300 files through one worker, Ruby 3.4.8): RSS +0.6 % (fork) and
 +0.3 % (spawn) over the last third of the run, live objects flat after a full GC.
 
