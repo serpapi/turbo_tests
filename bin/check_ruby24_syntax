@@ -1,0 +1,101 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+begin
+  require "parser/ruby24"
+rescue LoadError
+  warn "parser gem is required for Ruby 2.4 syntax checks. Install with: bundle add parser --group development"
+  exit 2
+end
+
+ROOT = File.expand_path("..", __dir__)
+PATTERNS = [
+  [/\.then\b/, "Object#then is not available on Ruby 2.4"],
+  [/\.yield_self\b/, "Object#yield_self is not available on Ruby 2.4"],
+  [/\.filter_map\b/, "Enumerable#filter_map is not available on Ruby 2.4"],
+  [/\.transform_keys\b/, "Hash#transform_keys is not available on Ruby 2.4"],
+  [/\.transform_values\b/, "Hash#transform_values is not available on Ruby 2.4"],
+  [/\.delete_prefix\b/, "String#delete_prefix is not available on Ruby 2.4"],
+  [/\.delete_suffix\b/, "String#delete_suffix is not available on Ruby 2.4"],
+  [/\bDir\.children\b/, "Dir.children is not available on Ruby 2.4"],
+  [/\bDir\.each_child\b/, "Dir.each_child is not available on Ruby 2.4"],
+  [/\bData\.define\b/, "Data.define is not available on Ruby 2.4"],
+  [/\bkeyword_init:/, "keyword_init: is not available on Ruby 2.4"],
+  [/\.except\s*\(/, "Hash#except is not available on Ruby 2.4"],
+  [/\.pop\s*\(\s*timeout:/, "Queue#pop(timeout:) is not available on Ruby 2.4"],
+  [/\b(?:Dir\.)?glob\s*\([^\n]*\bbase:/, "Dir.glob(base:) is not available on Ruby 2.4"]
+].freeze
+
+Finding = Struct.new(:file, :line, :column, :message) do
+  def to_s
+    "#{file}:#{line}:#{column}: #{message}"
+  end
+end
+
+def ruby_files
+  return ARGV.map { |path| File.expand_path(path, Dir.pwd) } unless ARGV.empty?
+
+  lib_files = Dir[File.join(ROOT, "lib", "**", "*.rb")]
+  bin_files = Dir[File.join(ROOT, "bin", "*")].select { |path| File.file?(path) }
+  (lib_files + bin_files).sort
+end
+
+def relative(path)
+  path.sub(%r{\A#{Regexp.escape(ROOT)}/?}, "")
+end
+
+def syntax_findings(path)
+  source = File.binread(path)
+  buffer = Parser::Source::Buffer.new(relative(path), source: source)
+  parser = Parser::Ruby24.new
+  findings = []
+  parser.diagnostics.all_errors_are_fatal = false
+  parser.diagnostics.ignore_warnings = true
+  parser.diagnostics.consumer = lambda do |diagnostic|
+    loc = diagnostic.location
+    findings << Finding.new(relative(path), loc.line, loc.column + 1, diagnostic.message)
+  end
+  parser.parse(buffer)
+  findings
+rescue Parser::SyntaxError => e
+  loc = e.diagnostic.location
+  [Finding.new(relative(path), loc.line, loc.column + 1, e.diagnostic.message)]
+rescue Encoding::InvalidByteSequenceError, Encoding::UndefinedConversionError => e
+  [Finding.new(relative(path), 1, 1, e.message)]
+end
+
+def compatibility_findings(path)
+  findings = []
+  File.readlines(path, chomp: true).each_with_index do |line, idx|
+    code = line.
+      gsub(/%r\{.*?\}/, "").
+      gsub(%r{/(?:\\.|[^/])+/[a-z]*}, "").
+      gsub(/"(?:\\.|[^"])*"/, "").
+      gsub(/'(?:\\.|[^'])*'/, "")
+    PATTERNS.each do |pattern, message|
+      match = code.match(pattern)
+      findings << Finding.new(relative(path), idx + 1, match.begin(0) + 1, message) if match
+    end
+
+    warmup = code.match(/\bProcess\.warmup\b/)
+    if warmup && code !~ /respond_to\?\s*\(\s*:warmup\s*\)/ && code !~ /respond_to\?\s*\(\s*["']warmup["']\s*\)/
+      findings << Finding.new(relative(path), idx + 1, warmup.begin(0) + 1, "Process.warmup must be guarded by respond_to? on Ruby 2.4")
+    end
+
+    native = code.match(/\.native_thread_id\b/)
+    if native && code !~ /respond_to\?\s*\(\s*:native_thread_id\s*\)/ && code !~ /respond_to\?\s*\(\s*["']native_thread_id["']\s*\)/
+      findings << Finding.new(relative(path), idx + 1, native.begin(0) + 1, "Thread#native_thread_id must be guarded by respond_to? on Ruby 2.4")
+    end
+  end
+  findings
+end
+
+findings = ruby_files.flat_map { |path| syntax_findings(path) + compatibility_findings(path) }
+
+if findings.empty?
+  puts "Ruby 2.4 syntax/compatibility check passed (#{ruby_files.size} files)."
+  exit 0
+end
+
+findings.each { |finding| warn finding.to_s }
+exit 1

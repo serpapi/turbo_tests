@@ -1,0 +1,122 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "fileutils"
+require "open3"
+require "rbconfig"
+
+ROOT = File.expand_path("..", __dir__)
+SUITE = File.join(ROOT, "fixtures", "benchmark", "leak_300")
+
+# Worker RSS is sampled from child processes with pgrep -P <turbo_tests_pid> and
+# ps -o rss= -p <pid>. When core later prints worker pids in verbose output this
+# script also accepts stderr lines containing "worker pid=<pid>" or "pid: <pid>".
+
+def write_file(path, content)
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, content)
+end
+
+def generate_suite
+  300.times do |idx|
+    body = +"RSpec.describe 'leak #{idx + 1}' do\n"
+    if (idx % 10).zero?
+      body << "  let(:payload) { 'x' * 100_000 }\n"
+      body << "  shared_examples 'payload use' do\n    it('uses payload') { expect(payload.bytesize).to eq(100_000) }\n  end\n"
+      body << "  include_examples 'payload use'\n"
+    end
+    3.times do |example|
+      body << "  it('example #{example + 1}') { expect(#{example + 1}).to be > 0 }\n"
+    end
+    body << "end\n"
+    write_file(File.join(SUITE, "spec", "case_%03d_spec.rb" % (idx + 1)), body)
+  end
+end
+
+def child_pids(pid)
+  out, = Open3.capture2e("pgrep", "-P", pid.to_s)
+  out.scan(/\d+/).map(&:to_i)
+rescue Errno::ENOENT
+  []
+end
+
+def rss_kb(pid)
+  out, status = Open3.capture2e("ps", "-o", "rss=", "-p", pid.to_s)
+  return nil unless status.success?
+  out.to_i.nonzero?
+end
+
+def growth_percent(samples)
+  rss = samples.map { |sample| sample[:rss_kb] }.compact
+  return nil if rss.length < 6
+  third = rss.length / 3
+  middle = rss[third, third]
+  last = rss[-third, third]
+  middle_avg = middle.sum.to_f / middle.length
+  last_avg = last.sum.to_f / last.length
+  return nil if middle_avg.zero?
+  ((last_avg - middle_avg) / middle_avg) * 100.0
+end
+
+def run_pool(pool)
+  cmd = [RbConfig.ruby, "-I", "lib", "bin/turbo_tests", "--pool", pool, "-n", "1", File.join("fixtures", "benchmark", "leak_300")]
+  env = { "TURBO_TESTS_GC_STAT_EVERY" => "50" }
+  samples = []
+  gc_lines = []
+  stderr = +""
+  stdout = +""
+  status = nil
+
+  Open3.popen3(env, *cmd, chdir: ROOT) do |_stdin, out, err, wait_thr|
+    pid = wait_thr.pid
+    worker_pid = nil
+    readers = [out, err]
+    until status
+      readers.each do |io|
+        loop do
+          break unless IO.select([io], nil, nil, 0)
+          chunk = io.read_nonblock(4096, exception: false)
+          break if chunk.nil? || chunk == :wait_readable
+          if io.equal?(err)
+            stderr << chunk
+            gc_lines.concat(chunk.lines.grep(/gc_stat/))
+            pid_match = chunk.match(/(?:worker pid=|pid:\s*)(\d+)/)
+            worker_pid ||= pid_match[1].to_i if pid_match
+          else
+            stdout << chunk
+          end
+        end
+      end
+      worker_pid ||= child_pids(pid).first
+      rss = rss_kb(worker_pid) if worker_pid
+      samples << { at: Time.now.to_f, pid: worker_pid, rss_kb: rss } if rss
+      finished = wait_thr.join(0)
+      status = finished.value if finished
+      sleep 2 unless status
+    end
+  end
+
+  { pool: pool, cmd: cmd, status: status.exitstatus || 255, samples: samples, growth: growth_percent(samples), stdout: stdout, stderr: stderr, gc: gc_lines }
+rescue Errno::ENOENT, ArgumentError => e
+  { pool: pool, cmd: cmd, status: 127, samples: [], growth: nil, stdout: "", stderr: e.message, gc: [] }
+end
+
+def print_result(result)
+  puts "pool | sample | pid | rss MB"
+  result[:samples].each_with_index do |sample, idx|
+    puts [result[:pool], idx + 1, sample[:pid] || "n/a", sample[:rss_kb] ? format("%.1f", sample[:rss_kb] / 1024.0) : "n/a"].join(" | ")
+  end
+  growth = result[:growth] ? format("%.2f%%", result[:growth]) : "n/a"
+  puts "#{result[:pool]} growth last-third vs middle-third: #{growth} exit=#{result[:status]} gc_stat_lines=#{result[:gc].length}"
+  puts "#{result[:pool]} unsupported (exit #{result[:status]})" if result[:samples].empty? || result[:status] != 0
+end
+
+generate_suite
+results = %w[fork spawn].map { |pool| run_pool(pool) }
+results.each { |result| print_result(result) }
+
+if results.all? { |result| result[:samples].empty? || result[:status] != 0 }
+  exit 2
+end
+
+exit(results.any? { |result| result[:growth] && result[:growth] > 5.0 } ? 1 : 0)

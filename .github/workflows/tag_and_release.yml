@@ -20,11 +20,11 @@ jobs:
       packages: write
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Ruby 2.7
+    - uses: actions/checkout@v5
+    - name: Set up Ruby 3.3
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: 2.7
+        ruby-version: 3.3
         bundler-cache: true
 
     - name: Run tests
