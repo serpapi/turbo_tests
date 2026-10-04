@@ -35,6 +35,20 @@ end.parse!
 
 Sample = Struct.new(:suite, :config, :command, :wall, :cpu, :rss_mb, :exit_code, :stdout, :stderr)
 
+# Children must not inherit RUBYOPT=-rbundler/setup and BUNDLE_* from a
+# `bundle exec bin/benchmark` invocation: under Bundler the 2.2.5 binstub
+# activates the bundled turbo_tests 3.0.0 instead, silently benchmarking v3
+# against itself.
+def child_env
+  @child_env ||= if defined?(Bundler) && Bundler.respond_to?(:unbundled_env)
+    Bundler.unbundled_env
+  elsif defined?(Bundler) && Bundler.respond_to?(:original_env)
+    Bundler.original_env
+  else
+    ENV.to_h
+  end
+end
+
 def write_file(path, content)
   FileUtils.mkdir_p(File.dirname(path))
   File.write(path, content)
@@ -85,7 +99,7 @@ end
 
 def gem_paths
   @gem_paths ||= begin
-    out, = Open3.capture2e("gem", "env", "gempath")
+    out, = Open3.capture2e(child_env, "gem", "env", "gempath", unsetenv_others: true)
     out.strip
   end
 end
@@ -95,8 +109,16 @@ def ensure_v2_gem
   return exe if File.executable?(exe)
 
   FileUtils.mkdir_p(GEMS_V2)
-  system("gem", "install", "turbo_tests", "-v", "2.2.5", "--install-dir", GEMS_V2, "--no-document") || abort("failed to install turbo_tests 2.2.5")
+  system(child_env, "gem", "install", "turbo_tests", "-v", "2.2.5", "--install-dir", GEMS_V2, "--no-document", unsetenv_others: true) || abort("failed to install turbo_tests 2.2.5")
   exe
+end
+
+def verify_v2_env(env)
+  script = 'gem "turbo_tests", "2.2.5"; require "turbo_tests/version"; print TurboTests::VERSION'
+  out, status = Open3.capture2e(child_env.merge(env), RbConfig.ruby, "-e", script, unsetenv_others: true)
+  return if status.success? && out.strip == "2.2.5"
+
+  abort("v2 config resolves turbo_tests #{out.strip.inspect} instead of 2.2.5; check GEM_HOME/GEM_PATH and the Bundler environment")
 end
 
 def time_prefix
@@ -132,7 +154,7 @@ def run_command(env, argv, cwd)
   prefix = time_prefix
   command = prefix ? prefix + argv : argv
   started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-  stdout, stderr, status = Open3.capture3(env, *command, chdir: cwd)
+  stdout, stderr, status = Open3.capture3(child_env.merge(env), *command, chdir: cwd, unsetenv_others: true)
   wall = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
   cpu, rss = parse_time(stderr)
   [stdout, stderr, status.exitstatus || 255, wall, cpu, rss]
@@ -147,6 +169,7 @@ def command_for(config, suite_dir, workers)
   when "v2"
     exe = ensure_v2_gem
     env = { "GEM_HOME" => GEMS_V2, "GEM_PATH" => [GEMS_V2, gem_paths].join(File::PATH_SEPARATOR) }
+    verify_v2_env(env)
     [env, [exe, "-n", workers.to_s, target], cwd]
   when "local-command-static"
     [{}, [RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"), "--pool", "command", "--static", "-n", workers.to_s, target], cwd]
