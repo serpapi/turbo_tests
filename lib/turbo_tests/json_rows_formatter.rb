@@ -5,6 +5,8 @@ require "rspec/core"
 require "rspec/core/formatters"
 require "rspec/core/notifications"
 
+require_relative "protocol"
+
 module RSpecExt
   def handle_interrupt
     if RSpec.world.wants_to_quit
@@ -37,6 +39,7 @@ module TurboTests
 
     def initialize(output)
       @output = output
+      @writer = TurboTests::Protocol.default_writer(output)
     end
 
     def start(notification)
@@ -164,8 +167,7 @@ module TurboTests
     end
 
     def output_row(obj)
-      output.puts ENV["RSPEC_FORMATTER_OUTPUT_ID"] + obj.to_json
-      output.flush
+      @writer.write(obj)
     end
   end
 end

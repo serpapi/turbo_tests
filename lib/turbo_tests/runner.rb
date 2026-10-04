@@ -178,18 +178,16 @@ module TurboTests
 
         @threads <<
           Thread.new do
+            reader = Protocol::Reader.new(env["RSPEC_FORMATTER_OUTPUT_ID"])
             stdout.each_line do |line|
-              result = line.split(env["RSPEC_FORMATTER_OUTPUT_ID"])
-
-              output = result.shift
-              print(output) unless output.empty?
-
-              message = result.shift
-              next unless message
-
-              message = JSON.parse(message, symbolize_names: true)
-              message[:process_id] = process_id
-              @messages << message
+              reader.parse_line(line).each do |kind, value|
+                if kind == :output
+                  print(value) unless value.empty?
+                else
+                  value[:process_id] = process_id
+                  @messages << value
+                end
+              end
             end
 
             @messages << { type: "exit", process_id: process_id }
@@ -226,38 +224,6 @@ module TurboTests
       loop do
         message = @messages.pop
         case message[:type]
-        when "example_passed"
-          example = FakeExample.from_obj(message[:example])
-          @reporter.example_passed(example)
-        when "group_started"
-          @reporter.group_started(message[:group].to_struct)
-        when "group_finished"
-          @reporter.group_finished
-        when "example_pending"
-          example = FakeExample.from_obj(message[:example])
-          @reporter.example_pending(example)
-        when "load_summary"
-          message = message[:summary]
-          # NOTE: notifications order and content is not guaranteed hence the fetch
-          #       and count increment tracking to get the latest accumulated load time
-          @reporter.load_time = message[:load_time] if message.fetch(:count, 0) > @load_count
-        when "example_failed"
-          example = FakeExample.from_obj(message[:example])
-          @reporter.example_failed(example)
-          @failure_count += 1
-          if fail_fast_met
-            @threads.each(&:kill)
-            break
-          end
-        when "message"
-          if message[:message].include?("An error occurred") || message[:message].include?("occurred outside of examples")
-            @reporter.error_outside_of_examples(message[:message])
-            @error = true
-          else
-            @reporter.message(message[:message])
-          end
-        when "seed"
-        when "close"
         when "error"
           # Do nothing
           nil
@@ -267,7 +233,13 @@ module TurboTests
             break
           end
         else
-          STDERR.puts("Unhandled message in main process: #{message}")
+          if @reporter.handle(message) == :failure
+            @failure_count += 1
+            if fail_fast_met
+              @threads.each(&:kill)
+              break
+            end
+          end
         end
 
         STDOUT.flush

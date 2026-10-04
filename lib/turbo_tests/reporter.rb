@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
+require_relative "../utils/hash_extension"
+
 module TurboTests
   class Reporter
+    using CoreExtensions
+
     attr_writer :load_time
 
     def self.from_config(formatter_config, start_time, seed, seed_used)
@@ -33,6 +37,7 @@ module TurboTests
       @seed = seed
       @seed_used = seed_used
       @load_time = 0
+      @load_count = 0
       @errors_outside_of_examples_count = 0
     end
 
@@ -82,6 +87,42 @@ module TurboTests
       tests_per_process = (num_processes == 0 ? 0 : num_tests.to_f / num_processes).round
 
       puts "#{num_processes} processes for #{num_tests} #{name}s, ~ #{tests_per_process} #{name}s per process"
+    end
+
+    # Entry point for rows coming from workers. Lifecycle rows (ready, exit,
+    # job_finished, ...) are consumed by the runner; everything else lands
+    # here. Returns :fail_fast when a failure was recorded (the caller decides
+    # whether the threshold was met), nil otherwise.
+    def handle(row)
+      case row[:type]
+      when "example_passed"
+        example_passed(FakeExample.from_obj(row[:example]))
+      when "group_started"
+        group_started(row[:group].to_struct)
+      when "group_finished"
+        group_finished
+      when "example_pending"
+        example_pending(FakeExample.from_obj(row[:example]))
+      when "load_summary"
+        summary = row[:summary]
+        # NOTE: notifications order and content is not guaranteed hence the fetch
+        #       and count increment tracking to get the latest accumulated load time
+        self.load_time = summary[:load_time] if summary.fetch(:count, 0) > @load_count
+      when "example_failed"
+        example_failed(FakeExample.from_obj(row[:example]))
+        :failure
+      when "message"
+        text = row[:message]
+        if text.include?("An error occurred") || text.include?("occurred outside of examples")
+          error_outside_of_examples(text)
+        else
+          message(text)
+        end
+      when "seed", "close"
+        nil
+      else
+        STDERR.puts("Unhandled message in main process: #{row}")
+      end
     end
 
     def group_started(notification)
