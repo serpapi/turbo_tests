@@ -39,7 +39,7 @@ All notable changes to this project are documented here. The format follows
 - Deprecations and filtered-out/no-example messages are deduplicated in the parent; closes #58.
 - Formatter lookup now accepts built-ins or loaded formatter class constants only.
 - `--verbose` keeps per-worker command/env output and adds pool, scheduler, and probe decisions.
-- Ruby requirement is `>= 2.4`.
+- Ruby requirement is `>= 2.4` (2.x: `>= 2.7`), matching `turbo_tests2`; 2.4–2.6 are covered by the Linux CI matrix and the 2.4 syntax gate only.
 - RSpec discovery is owned directly through `rspec-core`; `.rspec`, `.rspec-local`, `SPEC_OPTS`, `--pattern`, `--exclude-pattern`, and `path:line` selectors are preserved.
 - Runtime log, seed, and encoding fixes incorporate reports and fixes from timezest, itsmycargo, crohr, OpenProject, ruby-core, and the `turbo_tests2` fork.
 

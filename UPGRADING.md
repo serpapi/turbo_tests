@@ -12,7 +12,7 @@
 | `--` passthrough | Options after `--` go to RSpec. Unknown options before `--` still fail fast. | Put turbo_tests options before `--`; put RSpec-only options after it. |
 | Formatter lookup is restricted | `-f` accepts built-ins or formatter class constants loaded by `-r`. Expressions are rejected. | Add `-r formatter_gem` and use `-f FormatterClass`. |
 | `TEST_ENV_NUMBER` auto-detect | Banner prints `TEST_ENV_NUMBER: "", 2, 3` or `1, 2, 3`. Ambiguous ActiveRecord probes abort with instructions. | Pass `--first-is-1`, `--first-is-blank`, or set `PARALLEL_TEST_FIRST_IS_1=true`. |
-| Ruby floor is 2.4 | Older Rubies are unsupported. | Stay on 2.x for older Rubies. |
+| Ruby floor moves from 2.7 (2.x) to 2.4 | The gemspec accepts 2.4–2.6 for parity with `turbo_tests2`. Those versions are exercised only by the Linux CI matrix and the 2.4 syntax gate; nothing older is supported by any line. | Nothing to restore; 2.x required 2.7. |
 | `parallel_tests` runtime dependency removed | `ParallelTests` constants are not loaded by turbo_tests. | Add `parallel_tests` to your Gemfile if app/test code references `ParallelTests` directly. Prefer replacing those references with env vars or rake hooks. |
 | `-r` runs in the parent | Required files load before formatter lookup and before the run starts. | Require spec-only files after `--` through RSpec options when they should load in workers. |
 | `--test-options` is split as one shell string | `--test-options "--tag focus --format documentation"` appends RSpec options. | Prefer `-- --tag focus --format documentation` for new commands. |

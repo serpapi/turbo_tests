@@ -257,19 +257,23 @@ Shutdown is bounded. After RSpec finishes, a worker that will not exit gets a `S
 
 Exit status is `0` only when examples pass and no worker hangs, crashes, or reports an error outside examples. Otherwise it is the maximum RSpec worker status or `1`. A run stopped by Ctrl-C exits `130` (a second Ctrl-C kills the workers immediately), one stopped by `SIGTERM` exits `143`. `--pool command` runs one `rspec` process per static group, so it needs `--groups` ≤ `-n` (the default).
 
-`bin/benchmark` on a 16-core arm64 laptop, 4 workers, median of 5 (`fixtures/benchmark`, generated):
+`bin/benchmark` on a 16-core arm64 laptop, 4 workers, median wall time of 5 runs (`fixtures/benchmark`, generated; raw samples in the CI `perf-artifacts`):
 
 | suite | serial `rspec` | turbo_tests 2.2.5 | v3 fork | v3 spawn | v3 command |
 |---|---|---|---|---|---|
-| `uneven_8` (8 files, sleeps 4/0.2/3/0.2/2/0.2/1/0.2 s) | 11.05 s | 4.42 s | 4.29 s | 4.31 s | 4.39 s |
-| `uneven_64` (64 files, log-normal sleeps) | 27.43 s | 7.26 s | 7.45 s (7.14 s with `--static`) | 7.51 s | 7.23 s |
-| `slow_boot` (spec_helper sleeps 2 s, 8 files) | 2.22 s | 2.43 s | 2.33 s | 2.32 s | 2.33 s |
-| CPU user+sys on `uneven_64` | 0.20 s | 1.05 s | 0.39 s | 0.71 s | 0.86 s |
-| max RSS of the parent on `uneven_64` | 35 MB | 39 MB | 26 MB | 26 MB | 28 MB |
+| `uneven_8` (8 files, sleeps 4/0.2/3/0.2/2/0.2/1/0.2 s) | 11.06 s | 4.53 s | 4.39 s | 4.35 s | 4.53 s |
+| `uneven_64` (64 files, log-normal sleeps) | 27.33 s | 7.27 s | 7.77 s (7.15 s with `--static`) | 7.60 s (7.17 s with `--static`) | 7.31 s |
+| `slow_boot` (spec_helper sleeps 2 s, 8 files) | 2.26 s | 2.45 s | 2.39 s | 2.36 s | 2.42 s |
+| mean CPU user+sys on `uneven_64` | 0.22 s | 1.11 s | 0.57 s (0.44 s with `--static`) | 0.96 s | 1.01 s |
+| largest process RSS on `uneven_64` | 34.9 MB | 39.2 MB | 26.4 MB | 26.5 MB | 28.1 MB |
 
 Sleep-bound suites sit at the 4-worker bound in every configuration; the fork pool's gain on this hardware is CPU
-(one boot instead of N) and memory, not wall time. Dynamic dispatch costs a few milliseconds per job, which shows on
-64 one-example files (`--static` removes it); it pays off when file runtimes are uneven and not yet recorded. Running this repository's own suite through `bin/turbo_tests -n 8`
+(one boot instead of N) and per-process memory, not wall time. The RSS column is what `time -l` reports: the largest
+resident set of any process in the run, parent or worker. Dynamic dispatch costs a few milliseconds per job, which
+shows on 64 one-example files: all five dynamic fork runs (7.46–8.39 s) were slower than all five 2.2.5 runs
+(7.24–7.30 s), while `--static` runs (7.11–7.17 s) were faster. It pays off when file runtimes are uneven and not yet
+recorded. Other work shared the machine during the measurement; single-run outliers up to +2.3 s were kept in the
+medians. Running this repository's own suite through `bin/turbo_tests -n 8`
 takes 17 s against 118 s serial. `bin/leak_check` (300 files through one worker, Ruby 3.4.8): RSS +0.6 % (fork) and
 +0.3 % (spawn) over the last third of the run, live objects flat after a full GC.
 
