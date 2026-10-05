@@ -42,6 +42,8 @@ All notable changes to this project are documented here. The format follows
 - Ruby requirement is `>= 2.4` (2.x: `>= 2.7`), matching `turbo_tests2`; 2.4–2.6 are in the configured Linux CI matrix and the 2.4 syntax gate, with runtime compatibility unverified until that matrix has run.
 - RSpec discovery is owned directly through `rspec-core`; `.rspec`, `.rspec-local`, `SPEC_OPTS`, `--pattern`, `--exclude-pattern`, and `path:line` selectors are preserved.
 - Runtime log, seed, and encoding fixes incorporate reports and fixes from timezest, itsmycargo, crohr, OpenProject, ruby-core, and the `turbo_tests2` fork.
+- README rewritten around the 3.0 runner, with a verbatim run as the first thing on the page; the externally hosted illustration is replaced by an in-repo mark (`assets/logo.svg`, dark variant) that shows four workers under one line of output.
+- The gem no longer ships `fixtures/`, `assets/` and `.github/`; the gemspec summary, description and `changelog_uri` describe 3.0.
 
 ### Fixed
 

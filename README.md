@@ -1,54 +1,37 @@
-<h1 align="center">
-  TurboTests
-</h1>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
+    <img src="assets/logo.svg" width="112" height="112" alt="turbo_tests mark: four parallel workers under one line of output">
+  </picture>
+</p>
 
-<div align="center">
-   <img src="https://user-images.githubusercontent.com/78694043/233910064-87a6d557-1120-42d2-b965-2a9403c6f2f4.svg" width="500" alt="Turbo-Tests">
+<h1 align="center"><code>turbo_tests</code></h1>
 
-</div>
+<p align="center">Run an RSpec suite across worker processes and read it as one <code>rspec</code> run.</p>
 
-<div align="center">
+<p align="center">
+  <a href="https://github.com/serpapi/turbo_tests/actions/workflows/tests.yml"><img src="https://github.com/serpapi/turbo_tests/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  <a href="https://rubygems.org/gems/turbo_tests"><img src="https://img.shields.io/gem/v/turbo_tests" alt="Gem version"></a>
+</p>
 
-  ![Tests](https://github.com/serpapi/turbo_tests/workflows/Tests/badge.svg)
+```console
+$ bundle exec turbo_tests -n 4 spec/reporter spec/cli_spec.rb spec/unit/scheduler_spec.rb
+3 workers (fork) for 3 spec files
+TEST_ENV_NUMBER: "", 2, 3
+.......................................
 
-</div>
-
-`turbo_tests` is a drop-in replacement for [`grosser/parallel_tests`](https://github.com/grosser/parallel_tests) with incremental summarized output. Source code of this gem is based on [Discourse](https://github.com/discourse/discourse/blob/6b9784cf8a18636bce281a7e4d18e65a0cbc6290/lib/turbo_tests.rb) and [RubyGems](https://github.com/rubygems/rubygems/tree/390335ceb351668cd433bd5bb9823dd021f82533/bundler/tool) work in this area.
-
-Incremental summarized output [doesn't fit vision of `parallel_tests` author](https://github.com/grosser/parallel_tests/issues/708) and [RSpec doesn't support built-in parallel testing yet](https://github.com/rspec/rspec-rails/issues/2104#issuecomment-658474900). This gem will not be useful once one of the issues above will be implemented.
-
-## Why incremental output?
-
-`parallel_tests` is great, but it messes output:
-
-```bash
-
-$ bundle exec rake parallel_tests:spec[^spec/search]
-.................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
-
-Finished in 1 minute 6.92 seconds (files took 6.95 seconds to load)
-2616 examples, 0 failures
-
-.........................................................................................................................................F........................................................................................................................................F..............................................................................................................................................................................................................................................................................................
-
-Finished in 1 minute 35.05 seconds (files took 6.26 seconds to load)
-2158 examples, 2 failures
-
-.................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
-
-Finished in 1 minute 35.05 seconds (files took 6.26 seconds to load)
-2158 examples, 0 failures
+Finished in 10.71 seconds (files took 0.19991 seconds to load)
+39 examples, 0 failures
 ```
 
-`turbo_tests` output looks like regular `rspec`:
+Dots arrive as examples finish, failures are printed once with their rerun commands, and the summary is one summary. A worker that finishes RSpec but cannot exit is killed after `--exit-timeout` and fails the run instead of hanging it.
 
-```bash
-$ bundle exec turbo_tests
-..........................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................F........................................................................................................................................F..............................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
+- **Zero-config swap.** `turbo_tests` takes the arguments `rspec`, `parallel_rspec` and `flatware rspec` take; `.rspec`, `SPEC_OPTS`, `--pattern`, `--only-failures` and formatters keep working. Details in [Swap in](#swap-in).
+- **Preload once, fork workers.** `spec_helper` loads once; workers pull files from a queue ordered by recorded runtime, longest first. `--pool spawn` and `--pool command` cover Windows, JRuby and `RSPEC_EXECUTABLE` setups. Details in [How it works](#how-it-works).
+- **One runtime dependency.** `rspec-core >= 3.10` on Ruby `>= 2.4`; `parallel_tests` is not required.
+- **Bounded shutdown.** A worker that will not exit gets a thread dump, `TERM`, then `KILL`, and the run exits `1` naming the worker and its files. Details in [When a worker will not exit](#when-a-worker-will-not-exit).
 
-Finished in 2 minute 25.15 seconds (files took 0 seconds to load)
-6873 examples, 2 failures
-```
+The 2.x line (a thin runner over `parallel_tests`) is on the `2-x-stable` branch and receives fixes only; `UPGRADING.md` lists what changed in 3.0. The original runner came from [Discourse](https://github.com/discourse/discourse/blob/6b9784cf8a18636bce281a7e4d18e65a0cbc6290/lib/turbo_tests.rb) and [RubyGems](https://github.com/rubygems/rubygems/tree/390335ceb351668cd433bd5bb9823dd021f82533/bundler/tool); the incremental output it exists for [is out of scope for `parallel_tests`](https://github.com/grosser/parallel_tests/issues/708) and [not built into RSpec](https://github.com/rspec/rspec-rails/issues/2104#issuecomment-658474900).
 
 ## Install
 
