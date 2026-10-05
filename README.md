@@ -291,7 +291,7 @@ takes 17 s against 118 s serial. `bin/leak_check` (300 files through one worker,
 
 On a real application suite (private Rails 6.1 + Mongoid app, 1,645 spec files, 151,132 examples, Ruby 2.7.8, 8 workers,
 cold start with no runtime log, single runs on a laptop shared with other heavy jobs, so these are observations rather
-than a controlled comparison): turbo_tests 2.2.4 378 s wall / 1,131 s CPU / 2.10 GB largest process; v3 fork 293 s /
+than a controlled comparison): turbo_tests 2.2.4 378 s wall / 1,132 s CPU / 2.10 GB largest process; v3 fork 293 s /
 1,086 s / 1.68 GB in the closest load window, 1-minute load 31→49 against 90→40 (an observed −23 % wall under
 uncontrolled load; CPU was within run-to-run noise, 964–1,086 s across identical v3 runs); 418 s on a v3 run under three times that load once a runtime log existed. flatware 2.3.4
 took 936 s at a much higher load, which is not comparable to either. Every run reported the same examples and the same
