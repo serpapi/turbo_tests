@@ -307,6 +307,7 @@ Create `.turbo_tests.rb` in the project root:
 TurboTests.configure do |config|
   config.before_fork do
     ActiveRecord::Base.connection_handler.clear_all_connections! if defined?(ActiveRecord::Base)
+    Mongoid.disconnect_clients if defined?(Mongoid)
   end
 
   config.after_fork do |worker_number|
@@ -330,7 +331,7 @@ For `pg` in forked workers, try:
 PGGSSENCMODE=disable bundle exec turbo_tests
 ```
 
-Thread pools, connection pools, and clients opened before fork are inherited. Close them in `before_fork` and reconnect in `after_fork`.
+Thread pools, connection pools, and clients opened before fork are inherited. Close them in `before_fork` and reconnect in `after_fork`. The preloader requires only the `.rspec --require` files (or `--preload FILE`), not the spec files, so clients that an application opens lazily are normally first opened inside a worker; a client opened at boot by an initializer, or a Mongoid client without the `disconnect_clients` call above, is inherited by every worker and stalls their first query until the driver notices the dead connection.
 
 ## Databases and TEST_ENV_NUMBER
 
