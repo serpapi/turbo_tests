@@ -60,9 +60,12 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Run spawn pool
-        timeout-minutes: 10
-        run: bundle exec turbo_tests --pool spawn -n 2 spec
+      # A smoke run, not the suite: the suite starts hundreds of nested
+      # Rubies, which on a JVM would not finish in the job's budget.
+      - name: Run spawn pool on a fixture suite
+        timeout-minutes: 5
+        working-directory: fixtures/reporter/defined_order
+        run: bundle exec turbo_tests --pool spawn -n 2 --exit-timeout 30 --no-runtime-log spec
 
   syntax-2-4:
     runs-on: ubuntu-latest
