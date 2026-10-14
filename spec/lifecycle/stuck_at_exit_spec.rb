@@ -1,6 +1,6 @@
 require_relative "lifecycle_helper"
 
-RSpec.describe "a worker that never exits (fixtures/lifecycle/stuck_at_exit_spec.rb)" do
+RSpec.describe "a worker that never exits (fixtures/lifecycle/stuck_at_exit_spec.rb)", :posix do
   LifecycleHelper::POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "is killed after --exit-timeout, named with its file and diagnosed, and fails the run" do

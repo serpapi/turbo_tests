@@ -5,8 +5,11 @@ require "open3"
 require "rbconfig"
 require "stringio"
 
-# Runs real RSpec processes for the reporter specs: a worker emitting rows on a
-# dedicated file descriptor (as turbo_tests workers do), a serial rspec run for
+require "turbo_tests/protocol"
+
+# Runs real RSpec processes for the reporter specs: a worker emitting rows the
+# way turbo_tests workers do on this platform (a dedicated file descriptor, or
+# on Windows prefixed lines mixed into stdout), a serial rspec run for
 # comparison, and a parent-like process replaying rows into formatters.
 module ReporterHelpers
   REPO_ROOT = File.expand_path("../../..", __dir__)
@@ -80,26 +83,56 @@ module ReporterHelpers
   end
 
   # A worker run: rspec with TurboTests::JsonRowsFormatter writing rows to a
-  # dedicated pipe mapped to fd 3 (TURBO_TESTS_ROWS_FD), memoized per process.
+  # dedicated pipe mapped to fd 3 (TURBO_TESTS_ROWS_FD) or, on Windows, prefixed
+  # lines on stdout (RSPEC_FORMATTER_OUTPUT_ID); memoized per process.
   def run_worker(fixture, *args, env: {}, unbundled: false)
     key = [fixture, args, env, unbundled]
-    ReporterHelpers.worker_runs[key] ||= begin
-      rows_r, rows_w = IO.pipe
-      begin
-        capture(
-          { "TURBO_TESTS_ROWS_FD" => "3", "RSPEC_FORMATTER_OUTPUT_ID" => nil, "TEST_ENV_NUMBER" => nil }.merge(env),
-          rspec_command + ["-I", LIB, "-r", "turbo_tests/json_rows_formatter",
-                           "--format", "TurboTests::JsonRowsFormatter", *args],
-          chdir: fixture_path(fixture),
-          redirects: { 3 => rows_w },
-          rows_reader: rows_r,
-          unbundled: unbundled
-        )
-      ensure
-        rows_r.close unless rows_r.closed?
-        rows_w.close unless rows_w.closed?
+    ReporterHelpers.worker_runs[key] ||= if Gem.win_platform? || ENV["TURBO_TESTS_SPEC_MIXED_ROWS"]
+      run_worker_mixed(fixture, *args, env: env, unbundled: unbundled)
+    else
+      run_worker_dedicated(fixture, *args, env: env, unbundled: unbundled)
+    end
+  end
+
+  def worker_command(args)
+    rspec_command + ["-I", LIB, "-r", "turbo_tests/json_rows_formatter",
+                     "--format", "TurboTests::JsonRowsFormatter", *args]
+  end
+
+  # Windows cannot hand a child an extra descriptor: rows share stdout behind
+  # a per-run prefix and are split out here like Pool::Spawn does.
+  def run_worker_mixed(fixture, *args, env:, unbundled:)
+    prefix = "turbo-tests-rows-#{Process.pid}-#{rand(1 << 32)}:"
+    result = capture(
+      { "TURBO_TESTS_ROWS_FD" => nil, "RSPEC_FORMATTER_OUTPUT_ID" => prefix, "TEST_ENV_NUMBER" => nil }.merge(env),
+      worker_command(args),
+      chdir: fixture_path(fixture),
+      unbundled: unbundled
+    )
+    reader = TurboTests::Protocol::Reader.new(prefix)
+    output = +""
+    rows = []
+    result.stdout.each_line do |line|
+      reader.parse_line(line).each do |kind, item|
+        kind == :row ? rows << item : output << item
       end
     end
+    Result.new(output, result.stderr, result.status, rows)
+  end
+
+  def run_worker_dedicated(fixture, *args, env:, unbundled:)
+    rows_r, rows_w = IO.pipe
+    capture(
+      { "TURBO_TESTS_ROWS_FD" => "3", "RSPEC_FORMATTER_OUTPUT_ID" => nil, "TEST_ENV_NUMBER" => nil }.merge(env),
+      worker_command(args),
+      chdir: fixture_path(fixture),
+      redirects: { 3 => rows_w },
+      rows_reader: rows_r,
+      unbundled: unbundled
+    )
+  ensure
+    rows_r.close if rows_r && !rows_r.closed?
+    rows_w.close if rows_w && !rows_w.closed?
   end
 
   def run_serial(fixture, *args, env: {}, unbundled: false)

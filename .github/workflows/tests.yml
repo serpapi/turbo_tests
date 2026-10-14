@@ -51,6 +51,11 @@ jobs:
         ruby: [jruby, truffleruby]
     steps:
       - uses: actions/checkout@v5
+      # JRuby 10 is compiled for Java 21; the runner's default JDK is 17.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
@@ -115,9 +120,9 @@ jobs:
       - name: Run benchmarks
         run: |
           set +e
-          bin/benchmark --runs 3 --json bench.json
+          bundle exec bin/benchmark --runs 3 --json bench.json
           bench_status=$?
-          bin/leak_check
+          bundle exec bin/leak_check
           leak_status=$?
           exit $(( bench_status > leak_status ? bench_status : leak_status ))
       - uses: actions/upload-artifact@v4

@@ -1,6 +1,6 @@
 require_relative "lifecycle_helper"
 
-RSpec.describe "a grandchild holding a worker's pipes (fixtures/lifecycle/pipe_holder_spec.rb)" do
+RSpec.describe "a grandchild holding a worker's pipes (fixtures/lifecycle/pipe_holder_spec.rb)", :posix do
   LifecycleHelper::POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "does not keep the run waiting for EOF and is cleaned up with the worker's process group" do

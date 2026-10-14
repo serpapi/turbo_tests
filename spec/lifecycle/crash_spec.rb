@@ -1,6 +1,6 @@
 require_relative "lifecycle_helper"
 
-RSpec.describe "a worker killed in the middle of a job (fixtures/lifecycle/crash_spec.rb)" do
+RSpec.describe "a worker killed in the middle of a job (fixtures/lifecycle/crash_spec.rb)", :posix do
   LifecycleHelper::POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "is reported with its status and files and fails the run" do

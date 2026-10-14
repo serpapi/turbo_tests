@@ -10,7 +10,7 @@ RSpec.describe TurboTests::CLI do
   end
 
   def banner
-    /\A1 worker \((?:fork|spawn)\) for 1 spec file\n/
+    /\A1 worker \((?:fork|spawn|command)\) for 1 spec file\n/
   end
 
   def error_outside_of_examples(fixture)
@@ -32,11 +32,9 @@ RSpec.describe TurboTests::CLI do
     subject(:output) { `bundle exec turbo_tests -f d #{fixture} --seed #{seed}`.strip }
 
     context "errors outside of examples" do
-      let(:expected_end_of_output) do
-        "0 examples, 0 failures, 1 error occurred outside of examples\n"\
-        "\n"\
-        "Randomized with seed #{seed}"
-      end
+      # rspec reports a seed only when it ordered something; a run that stops
+      # at load time ends with the summary, as a serial `rspec --seed` does.
+      let(:expected_end_of_output) { "0 examples, 0 failures, 1 error occurred outside of examples" }
 
       let(:fixture) { "./fixtures/rspec/errors_outside_of_examples_spec.rb" }
 

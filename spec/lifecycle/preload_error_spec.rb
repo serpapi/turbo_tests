@@ -3,7 +3,7 @@ require_relative "lifecycle_helper"
 RSpec.describe "spec_helper raising while it is preloaded (fixtures/lifecycle/preload_error)" do
   let(:project) { File.join(LifecycleHelper::ROOT, LifecycleHelper::FIXTURES, "preload_error") }
 
-  %w[fork spawn].each do |pool|
+  LifecycleHelper::PERSISTENT_POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "reports the error once per booting process and runs nothing" do
         result = turbo_tests("--pool", pool, "-n", "2", "--no-runtime-log", chdir: project)

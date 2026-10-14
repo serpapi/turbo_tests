@@ -1,7 +1,7 @@
 require_relative "lifecycle_helper"
 
 RSpec.describe "GC between jobs (fixtures/lifecycle/gc_between_jobs)" do
-  %w[fork spawn].each do |pool|
+  LifecycleHelper::PERSISTENT_POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "keeps the rows channel alive across jobs of one worker" do
         result = turbo_tests("--pool", pool, "-n", "1", "--no-runtime-log", "#{LifecycleHelper::FIXTURES}/gc_between_jobs")

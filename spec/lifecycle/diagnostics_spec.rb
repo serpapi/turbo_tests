@@ -74,13 +74,13 @@ RSpec.describe TurboTests::Diagnostics do
 
   describe ".capture" do
     it "returns command output" do
-      expect(described_class.capture(["echo", "hello"], 5)).to eq("hello\n")
+      expect(described_class.capture([RbConfig.ruby, "-e", "puts 'hello'"], 5)).to eq("hello\n")
     end
 
     it "gives up on commands that outlive the timeout" do
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-      expect(described_class.capture(["sleep", "5"], 0.3)).to be_nil
+      expect(described_class.capture([RbConfig.ruby, "-e", "sleep 5"], 0.3)).to be_nil
       expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 2
     end
 
@@ -119,7 +119,7 @@ RSpec.describe TurboTests::Diagnostics do
       expect(wall).to be < 3
     end
 
-    it "names a thread that blocks the exit from its ensure block" do
+    it "names a thread that blocks the exit from its ensure block", :posix do
       _out, err, status, = ruby(<<~RUBY, timeout: 4)
         Thread.new do
           begin

@@ -366,6 +366,10 @@ module TurboTests
     end
 
     def executable?(name)
+      if name.include?("/") || (File::ALT_SEPARATOR && name.include?(File::ALT_SEPARATOR))
+        return File.file?(name) && File.executable?(name)
+      end
+
       ENV["PATH"].to_s.split(File::PATH_SEPARATOR).any? do |dir|
         path = File.join(dir, name)
         File.file?(path) && File.executable?(path)

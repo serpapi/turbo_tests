@@ -275,7 +275,7 @@ RSpec.describe TurboTests::Reporter do
       expect(merged.scan(/^Top \d+ slowest examples/)).to eq(["Top 3 slowest examples"])
       expect(merged.scan(/^Top \d+ slowest example groups:$/)).to eq(["Top 2 slowest example groups:"])
       expect(ranking.call(merged)).to eq(
-        ["Profile second sleeps 0.30", "Profile first sleeps 0.25", "Profile first sleeps 0.20",
+        ["Profile second sleeps 0.60", "Profile first sleeps 0.35", "Profile first sleeps 0.20",
          "Profile second", "Profile first"]
       )
       expect(ranking.call(merged)).to eq(ranking.call(serial))

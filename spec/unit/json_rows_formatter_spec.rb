@@ -184,12 +184,12 @@ RSpec.describe TurboTests::JsonRowsFormatter do
       expect(profile[:number_of_examples]).to eq(3)
       expect(profile[:duration]).to be_a(Float)
       expect(profile[:slowest_examples].map { |example| example[:description] }).to eq(
-        ["sleeps 0.30", "sleeps 0.25", "sleeps 0.20"]
+        ["sleeps 0.60", "sleeps 0.35", "sleeps 0.20"]
       )
       expect(profile[:slowest_examples].first.keys).to eq(%i[id description full_description location run_time])
       expect(profile[:slowest_examples].first).to include(
-        id: "./spec/second_spec.rb[1:3]", full_description: "Profile second sleeps 0.30",
-        location: "./spec/second_spec.rb:4", run_time: be >= 0.3
+        id: "./spec/second_spec.rb[1:3]", full_description: "Profile second sleeps 0.60",
+        location: "./spec/second_spec.rb:4", run_time: be >= 0.6
       )
       expect(profile[:slowest_groups].map { |group| group.values_at(:description, :location, :count) }).to eq(
         [["Profile second", "./spec/second_spec.rb:1", 3], ["Profile first", "./spec/first_spec.rb:1", 3]]
@@ -201,7 +201,7 @@ RSpec.describe TurboTests::JsonRowsFormatter do
       single = rows_of(ReporterHelpers.run_worker("profile", "spec/first_spec.rb"), "dump_profile").first
 
       expect(single[:slowest_examples].map { |example| example[:description] }).to eq(
-        ["sleeps 0.25", "sleeps 0.20", "sleeps 0.05"]
+        ["sleeps 0.35", "sleeps 0.20", "sleeps 0.02"]
       )
       expect(single[:slowest_groups].map { |group| group[:description] }).to eq(["Profile first"])
     end

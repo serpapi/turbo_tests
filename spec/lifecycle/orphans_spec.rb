@@ -1,6 +1,6 @@
 require_relative "lifecycle_helper"
 
-RSpec.describe "fail-fast leaves no process behind (fixtures/lifecycle/orphans)" do
+RSpec.describe "fail-fast leaves no process behind (fixtures/lifecycle/orphans)", :posix do
   LifecycleHelper::POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "stops dispatching, interrupts busy workers and cleans up their process groups" do

@@ -171,16 +171,13 @@ def command_for(config, suite_dir, workers)
     env = { "GEM_HOME" => GEMS_V2, "GEM_PATH" => [GEMS_V2, gem_paths].join(File::PATH_SEPARATOR) }
     verify_v2_env(env)
     [env, [RbConfig.ruby, exe, "_2.2.5_", "-n", workers.to_s, target], cwd]
-  when "local-command-static"
-    [{}, [RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"), "--pool", "command", "--static", "-n", workers.to_s, target], cwd]
-  when "local-spawn"
-    [{}, [RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"), "--pool", "spawn", "-n", workers.to_s, target], cwd]
-  when "local-spawn-static"
-    [{}, [RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"), "--pool", "spawn", "--static", "-n", workers.to_s, target], cwd]
-  when "local-fork"
-    [{}, [RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"), "--pool", "fork", "-n", workers.to_s, target], cwd]
-  when "local-fork-static"
-    [{}, [RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"), "--pool", "fork", "--static", "-n", workers.to_s, target], cwd]
+  when /\Alocal-(command|spawn|fork)(-static)?\z/
+    # Under the bundle so rspec-core resolves wherever Bundler installed it
+    # (CI keeps gems in vendor/bundle, invisible to a bare `ruby`).
+    pool = Regexp.last_match(1)
+    static = Regexp.last_match(2) ? ["--static"] : []
+    [{}, ["bundle", "exec", RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"),
+          "--pool", pool, *static, "-n", workers.to_s, target], cwd]
   else
     raise ArgumentError, "unknown config: #{config}"
   end
@@ -196,7 +193,7 @@ def print_table(samples_by_key)
   rows = [["suite", "config", "median wall s", "min", "max", "user+sys CPU s", "max RSS MB", "exit codes"]]
   samples_by_key.each do |(suite, config), samples|
     median, min, max, cpu, rss, exits = summarize(samples)
-    label = exits.any? { |code| code != 0 } && config.start_with?("local-") ? "#{config} unsupported (exit #{exits.join(',')})" : config
+    label = exits.any? { |code| code != 0 } ? "#{config} failed (exit #{exits.join(',')})" : config
     rows << [suite, label, format("%.3f", median), format("%.3f", min), format("%.3f", max), format("%.3f", cpu), rss ? format("%.1f", rss) : "n/a", exits.join(",")]
   end
   widths = rows.transpose.map { |col| col.map(&:length).max }

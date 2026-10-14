@@ -1,6 +1,7 @@
 require "rbconfig"
 require "tmpdir"
 require "fileutils"
+require "turbo_tests"
 
 # Runs bin/turbo_tests as a real subprocess. stdin is a pipe (not a TTY), so
 # workers get their own process groups, as on CI.
@@ -8,7 +9,10 @@ module LifecycleHelper
   ROOT = File.expand_path("../..", __dir__)
   BIN = File.join(ROOT, "bin", "turbo_tests")
   FIXTURES = "fixtures/lifecycle"
-  POOLS = %w[fork spawn command].freeze
+  WINDOWS = Gem.win_platform?
+  # The persistent pools this platform has; `command` is always available.
+  PERSISTENT_POOLS = (TurboTests::Pool.fork_supported? ? %w[fork spawn] : %w[spawn]).freeze
+  POOLS = (PERSISTENT_POOLS + %w[command]).freeze
 
   class Result
     attr_reader :stdout, :stderr, :status, :wall, :pipes_closed
@@ -53,7 +57,8 @@ module LifecycleHelper
     out_r, out_w = IO.pipe
     err_r, err_w = IO.pipe
     in_r, in_w = IO.pipe
-    pid = Process.spawn(env, RbConfig.ruby, BIN, *args, in: in_r, out: out_w, err: err_w, chdir: chdir, pgroup: true)
+    group = WINDOWS ? {new_pgroup: true} : {pgroup: true}
+    pid = Process.spawn(env, RbConfig.ruby, BIN, *args, {in: in_r, out: out_w, err: err_w, chdir: chdir}.merge(group))
     [out_w, err_w, in_r].each(&:close)
     buffers = {out_r => +"", err_r => +""}
     open = buffers.keys
@@ -68,7 +73,7 @@ module LifecycleHelper
       break if exited_at && monotonic - exited_at > drain
 
       if monotonic - started > timeout
-        Process.kill(:KILL, -pid) rescue nil
+        Process.kill(:KILL, WINDOWS ? pid : -pid) rescue nil
         Process.wait(pid) rescue nil
         raise "turbo_tests #{args.join(" ")} did not finish in #{timeout}s:\n#{buffers.values.join("\n")}"
       end
@@ -95,6 +100,8 @@ module LifecycleHelper
 
   def alive?(pid)
     Process.kill(0, pid)
+    return true if WINDOWS
+
     state = IO.popen(["ps", "-o", "stat=", "-p", Integer(pid).to_s], &:read).strip
     !state.empty? && !state.start_with?("Z")
   rescue Errno::ESRCH

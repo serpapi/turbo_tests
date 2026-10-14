@@ -10,7 +10,7 @@ RSpec.describe "suite hooks (fixtures/lifecycle/suite_hooks)" do
     fixture_lines.grep(/\A#{kind} /).map { |line| line.split.last }
   end
 
-  %w[fork spawn].each do |pool|
+  LifecycleHelper::PERSISTENT_POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "runs before(:suite) and after(:suite) once per worker, including hooks registered by later files" do
         result = run(pool)
@@ -43,7 +43,7 @@ RSpec.describe "suite hooks that raise (fixtures/lifecycle/suite_hook_errors)" d
       env: {"TURBO_TESTS_FIXTURE_FAIL" => failing})
   end
 
-  %w[fork spawn command].each do |pool|
+  LifecycleHelper::POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "skips every job of the worker after a before(:suite) failure and fails the run" do
         result = run(pool, "before")

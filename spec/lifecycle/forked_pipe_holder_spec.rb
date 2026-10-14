@@ -1,6 +1,6 @@
 require_relative "lifecycle_helper"
 
-RSpec.describe "a process forked during preload keeps the control pipe (fixtures/lifecycle/forked_pipe_holder)" do
+RSpec.describe "a process forked during preload keeps the control pipe (fixtures/lifecycle/forked_pipe_holder)", :posix do
   it "does not keep the run waiting with --pool fork" do
     pids = []
     result = turbo_tests("--pool", "fork", "-n", "1", "--no-runtime-log",

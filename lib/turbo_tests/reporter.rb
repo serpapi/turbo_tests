@@ -156,7 +156,9 @@ module TurboTests
           required = true
           retry if require_formatter(path)
         end
-        raise Error, "Formatter '#{path}' could not be found (#{e.message}); load it with --require."
+        # Ruby 3.1's error_highlight appends a multi-line code snippet to NameError#message.
+        reason = e.message.lines.first.to_s.strip
+        raise Error, "Formatter '#{path}' could not be found (#{reason}); load it with --require."
       end
     end
 

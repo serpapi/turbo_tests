@@ -9,7 +9,7 @@ RSpec.describe "--only-failures (fixtures/lifecycle/only_failures)" do
     RSpec::Core::ExampleStatusPersister.load_from(status_file).map { |row| [row[:example_id], row[:status]] }
   end
 
-  %w[fork spawn].each do |pool|
+  LifecycleHelper::PERSISTENT_POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "runs only the files with recorded failures, using the persistence file from spec_helper" do
         env = {"TURBO_TESTS_FIXTURE_STATUS" => status_file, "TURBO_TESTS_FIXTURE_STATUS_SEEN" => seen_file}

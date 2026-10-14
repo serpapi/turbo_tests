@@ -20,6 +20,11 @@ RSpec.describe "turbo_tests reporter output", :integration do
     ReporterHelpers.normalize_timing(ReporterHelpers.strip_ansi(text))
   end
 
+  # The persistent pool this platform runs by default (Windows has no fork).
+  def pool
+    TurboTests::Pool.fork_supported? ? "fork" : "spawn"
+  end
+
   def without_banner(text)
     text.sub(/\A\d+ workers? \(\w+\) for \d+ spec files?\n(?:TEST_ENV_NUMBER: .*\n)?/, "")
   end
@@ -30,19 +35,19 @@ RSpec.describe "turbo_tests reporter output", :integration do
   end
 
   it "prints the banner with the TEST_ENV_NUMBER convention and no seed for a defined order" do
-    result = turbo_tests("defined_order", "-n", "2", "--pool", "fork")
+    result = turbo_tests("defined_order", "-n", "2", "--pool", pool)
     output = plain(result.stdout)
 
     expect(result.status.exitstatus).to eq(0)
-    expect(output).to start_with(%(2 workers (fork) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n))
+    expect(output).to start_with(%(2 workers (#{pool}) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n))
     expect(output).not_to include("seed")
     expect(output.strip).to end_with("20 examples, 0 failures")
   end
 
   it "omits the TEST_ENV_NUMBER line for one worker" do
-    output = plain(turbo_tests("defined_order", "-n", "1", "--pool", "fork").stdout)
+    output = plain(turbo_tests("defined_order", "-n", "1", "--pool", pool).stdout)
 
-    expect(output).to start_with("1 worker (fork) for 2 spec files\n")
+    expect(output).to start_with("1 worker (#{pool}) for 2 spec files\n")
     expect(output).not_to include("TEST_ENV_NUMBER")
   end
 
@@ -74,7 +79,7 @@ RSpec.describe "turbo_tests reporter output", :integration do
     expect(output).to include("\nTop 3 slowest examples (")
     expect(output).to include("\nTop 2 slowest example groups:\n")
     expect(ranking.call(output)).to eq(
-      ["Profile second sleeps 0.30", "Profile first sleeps 0.25", "Profile first sleeps 0.20",
+      ["Profile second sleeps 0.60", "Profile first sleeps 0.35", "Profile first sleeps 0.20",
        "Profile second", "Profile first"]
     )
     expect(ranking.call(output)).to eq(ranking.call(serial))
@@ -83,9 +88,9 @@ RSpec.describe "turbo_tests reporter output", :integration do
   it "keeps each top-level group together in documentation output while workers run concurrently" do
     output = plain(turbo_tests("profile", "-n", "2", "-f", "d").stdout)
 
-    expect(output).to start_with(%(2 workers (fork) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n\nProfile ))
-    expect(output).to include("\nProfile first\n  sleeps 0.05\n  sleeps 0.20\n  sleeps 0.25\n")
-    expect(output).to include("\nProfile second\n  sleeps 0.10\n  sleeps 0.15\n  sleeps 0.30\n")
+    expect(output).to start_with(%(2 workers (#{pool}) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n\nProfile ))
+    expect(output).to include("\nProfile first\n  sleeps 0.02\n  sleeps 0.20\n  sleeps 0.35\n")
+    expect(output).to include("\nProfile second\n  sleeps 0.05\n  sleeps 0.08\n  sleeps 0.60\n")
   end
 
   it "prints each deprecation once and one deprecation summary" do
@@ -104,7 +109,7 @@ RSpec.describe "turbo_tests reporter output", :integration do
 
     expect(result.status.exitstatus).to eq(0)
     expect(plain(result.stdout)).to eq(
-      %(2 workers (fork) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n) +
+      %(2 workers (#{pool}) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n) +
       "Run options: include #{focus}\n\nAll examples were filtered out\n\n\n" \
       "Finished in N seconds (files took N seconds to load)\n0 examples, 0 failures\n\n"
     )
@@ -117,7 +122,7 @@ RSpec.describe "turbo_tests reporter output", :integration do
 
     expect(result.status.exitstatus).to eq(0)
     expect(plain(result.stdout)).to eq(
-      %(2 workers (fork) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n) +
+      %(2 workers (#{pool}) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n) +
       "No examples found.\n\n\nFinished in N seconds (files took N seconds to load)\n0 examples, 0 failures\n\n"
     )
     expect(without_banner(plain(result.stdout))).to eq(serial)

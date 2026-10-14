@@ -1,7 +1,7 @@
 require_relative "lifecycle_helper"
 
-RSpec.describe "Ctrl-C (SIGINT to the parent)" do
-  %w[fork spawn].each do |pool|
+RSpec.describe "Ctrl-C (SIGINT to the parent)", :posix do
+  LifecycleHelper::PERSISTENT_POOLS.each do |pool|
     context "with --pool #{pool}" do
       it "stops after the current examples, prints the summary and leaves no worker behind" do
         log = fixture_log

@@ -268,13 +268,13 @@ module TurboTests
       config = RSpec.configuration
       world = RSpec.world
       count = 0
-      # Ordered even when the job stops early (load error): with random
-      # ordering configured the seed counts as used, so it is reported.
-      groups = world.ordered_example_groups
+      # Like RSpec::Core::Runner#run: a job that stops at load time is not
+      # ordered, so its seed does not count as used and is not reported.
       exit_code =
         if world.wants_to_quit
           config.reporter.exit_early(runner_exit_code(false))
         else
+          groups = world.ordered_example_groups
           count = world.example_count(groups)
           passed = config.reporter.report(count) do |reporter|
             groups.map { |group| group.run(reporter) }.all?
