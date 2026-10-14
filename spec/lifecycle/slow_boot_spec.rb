@@ -7,7 +7,7 @@ RSpec.describe "a slow application boot (fixtures/lifecycle/slow_boot)" do
     fixture_lines.grep(/\Aboot /).size
   end
 
-  it "boots once in the fork preloader when the boot is preloaded", :posix do
+  it "boots once in the fork preloader when the boot is preloaded", :fork do
     result = turbo_tests("--pool", "fork", "-n", "4", "--no-runtime-log", "--preload", "#{dir}/spec_helper.rb", dir,
       env: {"TURBO_TESTS_FIXTURE_LOG" => fixture_log})
 

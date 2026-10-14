@@ -1,6 +1,6 @@
 require_relative "lifecycle_helper"
 
-RSpec.describe "the fork preloader dying after its first fork (fixtures/lifecycle/preloader_death)", :posix do
+RSpec.describe "the fork preloader dying after its first fork (fixtures/lifecycle/preloader_death)", :posix, :fork do
   it "reports the workers that never ran as crashed, kills the orphan and fails the run" do
     dir = "#{LifecycleHelper::FIXTURES}/preloader_death"
     result = turbo_tests("--pool", "fork", "-n", "3", "--no-runtime-log", "--preload", "#{dir}/preload.rb", dir)
