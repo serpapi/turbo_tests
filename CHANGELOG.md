@@ -57,6 +57,10 @@ All notable changes to this project are documented here. The format follows
 - Fixed custom formatter example metadata for IDs, run time, exception class/cause, file path, line number, and group notifications.
 - Fixed `All examples were filtered out` being printed once per worker.
 - Fixed profile output being emitted once per worker instead of once per run.
+- Fixed `--pool command` never starting a worker on Windows: Bundler's `bundle` entry point is a Ruby script and is now run with the current Ruby instead of exec'd (found by the first run of the CI matrix on this branch).
+- Fixed worker output reaching the terminal as `\r\r\n` on Windows: the parent collapses the worker's `\r\n` before its own text-mode stdout converts again.
+- Fixed the "Formatter … could not be found" message spanning several lines on Ruby 3.1, where error_highlight appends a code snippet to `NameError#message`.
+- A job that stops at load time (a spec file that raises while loading) no longer counts its seed as used, so `Randomized with seed N` is printed at the end only when something was ordered, as a serial `rspec --seed` does; 2.x printed it regardless.
 
 ### Removed
 

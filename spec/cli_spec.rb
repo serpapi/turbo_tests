@@ -19,15 +19,18 @@ RSpec.describe TurboTests::CLI do
   end
 
   # rspec highlights the failing line with CodeRay except on Windows
-  # (RSpec::Core::Formatters::SyntaxHighlighter::WindowsImplementation).
-  def highlighted_snippet
-    "(?:#{Regexp.escape("\e[1;34m1\e[0m / \e[1;34m0\e[0m")}|1 / 0)"
+  # (RSpec::Core::Formatters::SyntaxHighlighter::WindowsImplementation), where
+  # the whole line is one red span.
+  def failure_line
+    highlighted = Regexp.escape("\e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m")
+    plain = Regexp.escape("\e[31mFailure/Error: 1 / 0\e[0m")
+    "(?:#{highlighted}|#{plain})"
   end
 
   def error_outside_of_examples(fixture)
     Regexp.new(
       "An error occurred while loading #{Regexp.escape(fixture)}\\.\n" \
-      "#{Regexp.escape("\e[31mFailure/Error: \e[0m")}#{highlighted_snippet}#{Regexp.escape("\e[0m")}\n" \
+      "#{failure_line}\n" \
       "#{Regexp.escape("\e[31m\e[0m")}\n" \
       "#{Regexp.escape("\e[31mZeroDivisionError:\e[0m")}\n" \
       "#{Regexp.escape("\e[31m  divided by 0\e[0m")}\n" \
