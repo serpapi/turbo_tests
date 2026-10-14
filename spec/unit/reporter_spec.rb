@@ -187,7 +187,7 @@ RSpec.describe TurboTests::Reporter do
       examples = rows.map { |row| row[:example] }.sort_by { |example| -example[:run_time] }.first(3)
       {
         type: "dump_profile",
-        slowest_examples: examples.map { |example| example.slice(:id, :description, :full_description, :location, :run_time) },
+        slowest_examples: examples.map { |example| example.select { |key, _| %i[id description full_description location run_time].include?(key) } },
         slowest_groups: group_stats(rows).sort_by { |group| -group[:total_time] / group[:count] }.first(3),
         duration: duration,
         number_of_examples: 3,
@@ -201,7 +201,7 @@ RSpec.describe TurboTests::Reporter do
       groups = {}
       group_stats(example_rows).each do |stats|
         group = TurboTests::FakeExampleGroup.new(description: stats[:description], location: stats[:location])
-        groups[group] = stats.slice(:description, :total_time, :count)
+        groups[group] = stats.select { |key, _| %i[description total_time count].include?(key) }
       end
       notification = RSpec::Core::Notifications::ProfileNotification.new(3.0, examples, 3, groups)
       output = StringIO.new

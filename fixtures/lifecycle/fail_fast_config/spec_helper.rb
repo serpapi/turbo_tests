@@ -3,6 +3,6 @@
 RSpec.configure do |config|
   config.fail_fast = true
   config.after(:suite) do
-    File.open(ENV.fetch("TURBO_TESTS_FIXTURE_LOG"), "a") { |f| f.puts "after_suite #{Process.pid}" }
+    File.open(ENV.fetch("TURBO_TESTS_FIXTURE_LOG"), "a") { |f| f.flock(File::LOCK_EX); f.seek(0, IO::SEEK_END); f.puts "after_suite #{Process.pid}" }
   end
 end

@@ -1,7 +1,12 @@
 RSpec.describe TurboTests::CLI do
   before { output }
 
-  subject(:output) { `bundle exec turbo_tests -f d #{fixture}`.strip }
+  # Windows stdout is text mode (\r\n); the expectations are written with \n.
+  def run(command)
+    `#{command}`.gsub("\r\n", "\n").strip
+  end
+
+  subject(:output) { run("bundle exec turbo_tests -f d #{fixture}") }
 
   # Ruby 3.4 quotes 'method' and prefixes the owner (Integer#/); older
   # Rubies print `method'.
@@ -29,7 +34,7 @@ RSpec.describe TurboTests::CLI do
   context "when the 'seed' parameter was used" do
     let(:seed) { 1234 }
 
-    subject(:output) { `bundle exec turbo_tests -f d #{fixture} --seed #{seed}`.strip }
+    subject(:output) { run("bundle exec turbo_tests -f d #{fixture} --seed #{seed}") }
 
     context "errors outside of examples" do
       # rspec reports a seed only when it ordered something; a run that stops
@@ -132,7 +137,7 @@ RSpec.describe TurboTests::CLI do
   end
 
   describe "invalid options" do
-    subject(:output) { `bundle exec turbo_tests --frobnicate 2>&1`.strip }
+    subject(:output) { run("bundle exec turbo_tests --frobnicate 2>&1") }
 
     it "exits 1 with a usage hint" do
       expect($?.exitstatus).to eql(1)

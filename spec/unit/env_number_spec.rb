@@ -40,7 +40,7 @@ RSpec.describe TurboTests::EnvNumber do
 
   around do |example|
     begin
-      saved = ENV.to_h.slice("TEST_ENV_NUMBER", "PARALLEL_TEST_FIRST_IS_1")
+      saved = ENV.select { |key, _| %w[TEST_ENV_NUMBER PARALLEL_TEST_FIRST_IS_1].include?(key) }
       ENV.delete("PARALLEL_TEST_FIRST_IS_1")
       ENV.delete("TEST_ENV_NUMBER")
       example.run

@@ -7,7 +7,7 @@ RSpec.describe TurboTests::CLI do
 
   around do |example|
     begin
-      saved = ENV.to_h.slice("PARALLEL_TEST_PROCESSORS")
+      saved = ENV.select { |key, _| key == "PARALLEL_TEST_PROCESSORS" }
       ENV.delete("PARALLEL_TEST_PROCESSORS")
       example.run
     ensure

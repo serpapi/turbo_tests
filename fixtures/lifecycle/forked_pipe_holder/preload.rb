@@ -6,4 +6,4 @@ pid = fork do
   sleep 300
 end
 Process.detach(pid)
-File.open(ENV.fetch("TURBO_TESTS_FIXTURE_LOG"), "a") { |f| f.puts "grandchild #{pid}" }
+File.open(ENV.fetch("TURBO_TESTS_FIXTURE_LOG"), "a") { |f| f.flock(File::LOCK_EX); f.seek(0, IO::SEEK_END); f.puts "grandchild #{pid}" }

@@ -22,6 +22,7 @@ PATTERNS = [
   [/\bData\.define\b/, "Data.define is not available on Ruby 2.4"],
   [/\bkeyword_init:/, "keyword_init: is not available on Ruby 2.4"],
   [/\.except\s*\(/, "Hash#except is not available on Ruby 2.4"],
+  [/\.slice\s*\((?:\s*:|\s*")/, "Hash#slice is not available on Ruby 2.4"],
   [/\.pop\s*\(\s*timeout:/, "Queue#pop(timeout:) is not available on Ruby 2.4"],
   [/\b(?:Dir\.)?glob\s*\([^\n]*\bbase:/, "Dir.glob(base:) is not available on Ruby 2.4"]
 ].freeze

@@ -75,7 +75,7 @@ RSpec.describe TurboTests::Protocol do
     # Also runs inside turbo_tests workers: keep their rows IO untouched.
     around do |example|
       begin
-        saved = ENV.to_h.slice(described_class::ROWS_FD_ENV, described_class::PREFIX_ENV)
+        saved = ENV.select { |key, _| [described_class::ROWS_FD_ENV, described_class::PREFIX_ENV].include?(key) }
         saved_io = described_class.instance_variable_get(:@rows_io)
         described_class.instance_variable_set(:@rows_io, nil)
         example.run
