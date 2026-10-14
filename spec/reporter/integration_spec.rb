@@ -79,7 +79,7 @@ RSpec.describe "turbo_tests reporter output", :integration do
     expect(output).to include("\nTop 3 slowest examples (")
     expect(output).to include("\nTop 2 slowest example groups:\n")
     expect(ranking.call(output)).to eq(
-      ["Profile second sleeps 0.60", "Profile first sleeps 0.35", "Profile first sleeps 0.20",
+      ["Profile second sleeps 0.90", "Profile first sleeps 0.35", "Profile first sleeps 0.20",
        "Profile second", "Profile first"]
     )
     expect(ranking.call(output)).to eq(ranking.call(serial))
@@ -90,7 +90,7 @@ RSpec.describe "turbo_tests reporter output", :integration do
 
     expect(output).to start_with(%(2 workers (#{pool}) for 2 spec files\nTEST_ENV_NUMBER: "", 2\n\nProfile ))
     expect(output).to include("\nProfile first\n  sleeps 0.02\n  sleeps 0.20\n  sleeps 0.35\n")
-    expect(output).to include("\nProfile second\n  sleeps 0.05\n  sleeps 0.08\n  sleeps 0.60\n")
+    expect(output).to include("\nProfile second\n  sleeps 0.05\n  sleeps 0.08\n  sleeps 0.90\n")
   end
 
   it "prints each deprecation once and one deprecation summary" do

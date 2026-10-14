@@ -184,11 +184,11 @@ RSpec.describe TurboTests::JsonRowsFormatter do
       expect(profile[:number_of_examples]).to eq(3)
       expect(profile[:duration]).to be_a(Float)
       expect(profile[:slowest_examples].map { |example| example[:description] }).to eq(
-        ["sleeps 0.60", "sleeps 0.35", "sleeps 0.20"]
+        ["sleeps 0.90", "sleeps 0.35", "sleeps 0.20"]
       )
       expect(profile[:slowest_examples].first.keys).to eq(%i[id description full_description location run_time])
       expect(profile[:slowest_examples].first).to include(
-        id: "./spec/second_spec.rb[1:3]", full_description: "Profile second sleeps 0.60",
+        id: "./spec/second_spec.rb[1:3]", full_description: "Profile second sleeps 0.90",
         location: "./spec/second_spec.rb:4", run_time: be >= 0.6
       )
       expect(profile[:slowest_groups].map { |group| group.values_at(:description, :location, :count) }).to eq(

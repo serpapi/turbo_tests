@@ -18,10 +18,16 @@ RSpec.describe TurboTests::CLI do
     /\A1 worker \((?:fork|spawn|command)\) for 1 spec file\n/
   end
 
+  # rspec highlights the failing line with CodeRay except on Windows
+  # (RSpec::Core::Formatters::SyntaxHighlighter::WindowsImplementation).
+  def highlighted_snippet
+    "(?:#{Regexp.escape("\e[1;34m1\e[0m / \e[1;34m0\e[0m")}|1 / 0)"
+  end
+
   def error_outside_of_examples(fixture)
     Regexp.new(
       "An error occurred while loading #{Regexp.escape(fixture)}\\.\n" \
-      "#{Regexp.escape("\e[31mFailure/Error: \e[0m\e[1;34m1\e[0m / \e[1;34m0\e[0m\e[0m")}\n" \
+      "#{Regexp.escape("\e[31mFailure/Error: \e[0m")}#{highlighted_snippet}#{Regexp.escape("\e[0m")}\n" \
       "#{Regexp.escape("\e[31m\e[0m")}\n" \
       "#{Regexp.escape("\e[31mZeroDivisionError:\e[0m")}\n" \
       "#{Regexp.escape("\e[31m  divided by 0\e[0m")}\n" \
