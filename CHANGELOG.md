@@ -44,6 +44,7 @@ All notable changes to this project are documented here. The format follows
 - Runtime log, seed, and encoding fixes incorporate reports and fixes from timezest, itsmycargo, crohr, OpenProject, ruby-core, and the `turbo_tests2` fork.
 - README rewritten around the 3.0 runner, with a verbatim run as the first thing on the page; the externally hosted illustration is replaced by an in-repo mark (`assets/logo.svg`, dark variant) that shows four workers under one line of output.
 - The gem no longer ships `fixtures/`, `assets/` and `.github/`; the gemspec summary, description and `changelog_uri` describe 3.0.
+- `Gemfile.lock` is no longer tracked: its `BUNDLED WITH 2.4.22` made the CI matrix install a Bundler that needs Ruby 2.6 on 2.4 and 2.5 and crashes on ruby-head, and pinned the suite to rspec-core 3.12 (it now resolves to 3.13).
 
 ### Fixed
 

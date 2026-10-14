@@ -68,3 +68,6 @@ tags
 
 /fixtures/benchmark/
 /bench.json
+
+# A gem does not pin its development lockfile: each Ruby in the CI matrix resolves and installs its own Bundler.
+/Gemfile.lock
