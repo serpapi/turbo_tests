@@ -37,7 +37,10 @@ def ruby_files
 
   lib_files = Dir[File.join(ROOT, "lib", "**", "*.rb")]
   bin_files = Dir[File.join(ROOT, "bin", "*")].select { |path| File.file?(path) }
-  (lib_files + bin_files).sort
+  # The suite and its fixtures run on the 2.4 CI job too (`ensure` inside a
+  # do/end block only parses from 2.5).
+  spec_files = Dir[File.join(ROOT, "{spec,fixtures}", "**", "*.rb")]
+  (lib_files + bin_files + spec_files).sort
 end
 
 def relative(path)
@@ -45,7 +48,14 @@ def relative(path)
 end
 
 def syntax_findings(path)
-  source = File.binread(path)
+  source = File.binread(path).force_encoding(Encoding::UTF_8)
+  # Byte fixtures (fixtures/lifecycle/non_utf8) are not UTF-8 on purpose.
+  return [] unless source.valid_encoding?
+
+  # The parser gem rejects "\xFF" in UTF-8 source, which MRI accepts; the
+  # byte value does not matter to a grammar check.
+  source = source.gsub(/\\x[0-9A-Fa-f]{2}/, "\\x41")
+
   buffer = Parser::Source::Buffer.new(relative(path), source: source)
   parser = Parser::Ruby24.new
   findings = []

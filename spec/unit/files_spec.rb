@@ -6,21 +6,23 @@ RSpec.describe TurboTests::Files do
   end
 
   around do |example|
-    root = File.expand_path("../../tmp", __dir__)
-    FileUtils.mkdir_p(root)
-    dir = Dir.mktmpdir("files", root)
-    original = Dir.pwd
-    Dir.chdir(dir)
-    saved_spec_opts = ENV.delete("SPEC_OPTS")
-    example.run
-  ensure
-    if saved_spec_opts
-      ENV["SPEC_OPTS"] = saved_spec_opts
-    else
-      ENV.delete("SPEC_OPTS")
+    begin
+      root = File.expand_path("../../tmp", __dir__)
+      FileUtils.mkdir_p(root)
+      dir = Dir.mktmpdir("files", root)
+      original = Dir.pwd
+      Dir.chdir(dir)
+      saved_spec_opts = ENV.delete("SPEC_OPTS")
+      example.run
+    ensure
+      if saved_spec_opts
+        ENV["SPEC_OPTS"] = saved_spec_opts
+      else
+        ENV.delete("SPEC_OPTS")
+      end
+      Dir.chdir(original)
+      FileUtils.rm_rf(dir)
     end
-    Dir.chdir(original)
-    FileUtils.rm_rf(dir)
   end
 
   def touch(*paths)

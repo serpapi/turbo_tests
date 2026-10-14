@@ -629,12 +629,14 @@ RSpec.describe TurboTests::Reporter do
     end
 
     it "requires a formatter named after the constant like rspec --format does" do
-      $LOAD_PATH.unshift(ReporterHelpers.fixture_path("formatters"))
-      klass = described_class.formatter_class("ReporterSpecAutoloadedFormatter")
+      begin
+        $LOAD_PATH.unshift(ReporterHelpers.fixture_path("formatters"))
+        klass = described_class.formatter_class("ReporterSpecAutoloadedFormatter")
 
-      expect(klass.name).to eq("ReporterSpecAutoloadedFormatter")
-    ensure
-      $LOAD_PATH.delete(ReporterHelpers.fixture_path("formatters"))
+        expect(klass.name).to eq("ReporterSpecAutoloadedFormatter")
+      ensure
+        $LOAD_PATH.delete(ReporterHelpers.fixture_path("formatters"))
+      end
     end
 
     it "rejects names that are not constant paths without evaluating them" do

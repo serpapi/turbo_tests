@@ -74,33 +74,37 @@ RSpec.describe TurboTests::Protocol do
   describe ".default_writer" do
     # Also runs inside turbo_tests workers: keep their rows IO untouched.
     around do |example|
-      saved = ENV.to_h.slice(described_class::ROWS_FD_ENV, described_class::PREFIX_ENV)
-      saved_io = described_class.instance_variable_get(:@rows_io)
-      described_class.instance_variable_set(:@rows_io, nil)
-      example.run
-    ensure
-      described_class.instance_variable_set(:@rows_io, saved_io)
-      ENV.delete(described_class::ROWS_FD_ENV)
-      ENV.delete(described_class::PREFIX_ENV)
-      ENV.update(saved)
+      begin
+        saved = ENV.to_h.slice(described_class::ROWS_FD_ENV, described_class::PREFIX_ENV)
+        saved_io = described_class.instance_variable_get(:@rows_io)
+        described_class.instance_variable_set(:@rows_io, nil)
+        example.run
+      ensure
+        described_class.instance_variable_set(:@rows_io, saved_io)
+        ENV.delete(described_class::ROWS_FD_ENV)
+        ENV.delete(described_class::PREFIX_ENV)
+        ENV.update(saved)
+      end
     end
 
     it "shares one rows IO for the whole process, surviving GC" do
-      reader, writer = IO.pipe
-      ENV[described_class::ROWS_FD_ENV] = writer.fileno.to_s
+      begin
+        reader, writer = IO.pipe
+        ENV[described_class::ROWS_FD_ENV] = writer.fileno.to_s
 
-      first = described_class.default_writer($stdout)
-      GC.start
-      second = described_class.default_writer($stdout)
-      second.write(type: "ready")
+        first = described_class.default_writer($stdout)
+        GC.start
+        second = described_class.default_writer($stdout)
+        second.write(type: "ready")
 
-      expect(first.io).to equal(second.io)
-      expect(second.io.close_on_exec?).to be(true)
-      expect(reader.gets).to eq(%({"type":"ready"}\n))
-    ensure
-      described_class.instance_variable_set(:@rows_io, nil)
-      reader&.close
-      writer&.close
+        expect(first.io).to equal(second.io)
+        expect(second.io.close_on_exec?).to be(true)
+        expect(reader.gets).to eq(%({"type":"ready"}\n))
+      ensure
+        described_class.instance_variable_set(:@rows_io, nil)
+        reader&.close
+        writer&.close
+      end
     end
 
     it "lets a forked child drop the inherited IO" do

@@ -39,13 +39,15 @@ RSpec.describe TurboTests::EnvNumber do
   end
 
   around do |example|
-    saved = ENV.to_h.slice("TEST_ENV_NUMBER", "PARALLEL_TEST_FIRST_IS_1")
-    ENV.delete("PARALLEL_TEST_FIRST_IS_1")
-    ENV.delete("TEST_ENV_NUMBER")
-    example.run
-  ensure
-    %w[TEST_ENV_NUMBER PARALLEL_TEST_FIRST_IS_1].each { |key| ENV.delete(key) }
-    ENV.update(saved)
+    begin
+      saved = ENV.to_h.slice("TEST_ENV_NUMBER", "PARALLEL_TEST_FIRST_IS_1")
+      ENV.delete("PARALLEL_TEST_FIRST_IS_1")
+      ENV.delete("TEST_ENV_NUMBER")
+      example.run
+    ensure
+      %w[TEST_ENV_NUMBER PARALLEL_TEST_FIRST_IS_1].each { |key| ENV.delete(key) }
+      ENV.update(saved)
+    end
   end
 
   describe ".forced / .detect" do

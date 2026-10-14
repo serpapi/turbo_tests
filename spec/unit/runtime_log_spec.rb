@@ -2,15 +2,17 @@ require "tmpdir"
 
 RSpec.describe TurboTests::RuntimeLog do
   around do |example|
-    root = File.expand_path("../../tmp", __dir__)
-    FileUtils.mkdir_p(root)
-    dir = Dir.mktmpdir("runtime_log", root)
-    original = Dir.pwd
-    Dir.chdir(dir)
-    example.run
-  ensure
-    Dir.chdir(original)
-    FileUtils.rm_rf(dir)
+    begin
+      root = File.expand_path("../../tmp", __dir__)
+      FileUtils.mkdir_p(root)
+      dir = Dir.mktmpdir("runtime_log", root)
+      original = Dir.pwd
+      Dir.chdir(dir)
+      example.run
+    ensure
+      Dir.chdir(original)
+      FileUtils.rm_rf(dir)
+    end
   end
 
   it "parses parallel_tests' format and normalizes paths" do

@@ -6,12 +6,14 @@ RSpec.describe TurboTests::CLI do
   end
 
   around do |example|
-    saved = ENV.to_h.slice("PARALLEL_TEST_PROCESSORS")
-    ENV.delete("PARALLEL_TEST_PROCESSORS")
-    example.run
-  ensure
-    ENV.delete("PARALLEL_TEST_PROCESSORS")
-    ENV.update(saved)
+    begin
+      saved = ENV.to_h.slice("PARALLEL_TEST_PROCESSORS")
+      ENV.delete("PARALLEL_TEST_PROCESSORS")
+      example.run
+    ensure
+      ENV.delete("PARALLEL_TEST_PROCESSORS")
+      ENV.update(saved)
+    end
   end
 
   it "defaults to the number of processors, progress on stdout and the default pool" do
@@ -206,20 +208,22 @@ RSpec.describe TurboTests::CLI do
     end
 
     it "runs setup before and cleanup after the block with an isolated ARGV" do
-      log = File.expand_path("hooks.log")
-      write_rakefile(log)
-      ARGV.replace(["--should-not-leak"])
+      begin
+        log = File.expand_path("hooks.log")
+        write_rakefile(log)
+        ARGV.replace(["--should-not-leak"])
 
-      status = TurboTests::CLI::RakeHooks.new(options).around do
-        File.open(log, "a") { |f| f.puts "run" }
-        3
+        status = TurboTests::CLI::RakeHooks.new(options).around do
+          File.open(log, "a") { |f| f.puts "run" }
+          3
+        end
+
+        expect(status).to eq(3)
+        expect(File.read(log)).to eq("setup ARGV=[]\nrun\ncleanup\n")
+        expect(ARGV).to eq(["--should-not-leak"])
+      ensure
+        ARGV.replace([])
       end
-
-      expect(status).to eq(3)
-      expect(File.read(log)).to eq("setup ARGV=[]\nrun\ncleanup\n")
-      expect(ARGV).to eq(["--should-not-leak"])
-    ensure
-      ARGV.replace([])
     end
 
     it "does not load Rakefiles that never mention turbo_tests" do
