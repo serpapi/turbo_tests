@@ -1,0 +1,230 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "fileutils"
+require "json"
+require "open3"
+require "optparse"
+require "rbconfig"
+
+ROOT = File.expand_path("..", __dir__)
+FIXTURE_ROOT = File.join(ROOT, "fixtures", "benchmark")
+GEMS_V2 = File.join(ROOT, "tmp", "gems_v2")
+
+# Resource measurement is wall-clocked with Process.clock_gettime and wraps commands
+# in /usr/bin/time (-l on macOS, -v on Linux) to collect CPU and max RSS without
+# platform-specific native extensions. macOS RSS is bytes; Linux RSS is KB.
+TIME_BIN = "/usr/bin/time"
+
+OPTIONS = {
+  workers: 4,
+  runs: 5,
+  json: nil,
+  configs: nil,
+  suites: nil
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: bin/benchmark [options]"
+  opts.on("-n N", Integer, "worker count (default: 4)") { |v| OPTIONS[:workers] = v }
+  opts.on("--runs N", Integer, "samples per config (default: 5)") { |v| OPTIONS[:runs] = v }
+  opts.on("--json FILE", "write raw samples as JSON") { |v| OPTIONS[:json] = v }
+  opts.on("--configs LIST", "comma-separated configs: serial,v2,local-command-static,local-spawn,local-spawn-static,local-fork,local-fork-static") { |v| OPTIONS[:configs] = v.split(",") }
+  opts.on("--suites LIST", "comma-separated suites: uneven_8,uneven_64,slow_boot") { |v| OPTIONS[:suites] = v.split(",") }
+end.parse!
+
+Sample = Struct.new(:suite, :config, :command, :wall, :cpu, :rss_mb, :exit_code, :stdout, :stderr)
+
+# Children must not inherit RUBYOPT=-rbundler/setup and BUNDLE_* from a
+# `bundle exec bin/benchmark` invocation: under Bundler the 2.2.5 binstub
+# activates the bundled turbo_tests 3.0.0 instead, silently benchmarking v3
+# against itself.
+def child_env
+  @child_env ||= if defined?(Bundler) && Bundler.respond_to?(:unbundled_env)
+    Bundler.unbundled_env
+  elsif defined?(Bundler) && Bundler.respond_to?(:original_env)
+    Bundler.original_env
+  else
+    ENV.to_h
+  end
+end
+
+def write_file(path, content)
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, content)
+end
+
+def spec_file(dir, index, sleep_seconds, helper: false)
+  require_line = helper ? "require 'spec_helper'\n" : ""
+  <<~RUBY
+    #{require_line}RSpec.describe "benchmark #{index}" do
+      it "sleeps" do
+        sleep #{format("%.3f", sleep_seconds)}
+        expect(true).to eq(true)
+      end
+    end
+  RUBY
+end
+
+def normal(rng)
+  u1 = rng.rand
+  u2 = rng.rand
+  Math.sqrt(-2.0 * Math.log([u1, 1e-12].max)) * Math.cos(2.0 * Math::PI * u2)
+end
+
+def generate_fixtures
+  FileUtils.mkdir_p(FIXTURE_ROOT)
+  write_file(File.join(FIXTURE_ROOT, ".rspec-empty"), "")
+
+  uneven_8 = [4.0, 0.2, 3.0, 0.2, 2.0, 0.2, 1.0, 0.2]
+  uneven_8.each_with_index do |sleep_seconds, idx|
+    write_file(File.join(FIXTURE_ROOT, "uneven_8", "spec", "case_%02d_spec.rb" % (idx + 1)), spec_file("uneven_8", idx + 1, sleep_seconds))
+  end
+
+  rng = Random.new(12_345)
+  64.times do |idx|
+    sleep_seconds = Math.exp(Math.log(0.3) + 0.9 * normal(rng))
+    sleep_seconds = [[sleep_seconds, 0.03].max, 5.0].min
+    write_file(File.join(FIXTURE_ROOT, "uneven_64", "spec", "case_%02d_spec.rb" % (idx + 1)), spec_file("uneven_64", idx + 1, sleep_seconds))
+  end
+
+  slow_boot = File.join(FIXTURE_ROOT, "slow_boot")
+  write_file(File.join(slow_boot, ".rspec"), "--require spec_helper\n")
+  write_file(File.join(slow_boot, "spec", "spec_helper.rb"), "sleep 2\n")
+  8.times do |idx|
+    content = spec_file("slow_boot", idx + 1, 0.0, helper: false).sub(/\A/, "require_relative 'spec_helper'\n")
+    write_file(File.join(slow_boot, "spec", "case_%02d_spec.rb" % (idx + 1)), content)
+  end
+end
+
+def gem_paths
+  @gem_paths ||= begin
+    out, = Open3.capture2e(child_env, "gem", "env", "gempath", unsetenv_others: true)
+    out.strip
+  end
+end
+
+def ensure_v2_gem
+  exe = File.join(GEMS_V2, "bin", "turbo_tests")
+  return exe if File.executable?(exe)
+
+  FileUtils.mkdir_p(GEMS_V2)
+  system(child_env, "gem", "install", "turbo_tests", "-v", "2.2.5", "--install-dir", GEMS_V2, "--no-document", unsetenv_others: true) || abort("failed to install turbo_tests 2.2.5")
+  exe
+end
+
+def verify_v2_env(env)
+  script = 'gem "turbo_tests", "2.2.5"; require "turbo_tests/version"; print TurboTests::VERSION'
+  out, status = Open3.capture2e(child_env.merge(env), RbConfig.ruby, "-e", script, unsetenv_others: true)
+  return if status.success? && out.strip == "2.2.5"
+
+  abort("v2 config resolves turbo_tests #{out.strip.inspect} instead of 2.2.5; check GEM_HOME/GEM_PATH and the Bundler environment")
+end
+
+def time_prefix
+  return [TIME_BIN, "-l"] if File.executable?(TIME_BIN) && RUBY_PLATFORM =~ /darwin/
+  return [TIME_BIN, "-v"] if File.executable?(TIME_BIN)
+  nil
+end
+
+def parse_time(stderr)
+  user = sys = nil
+  rss_mb = nil
+  stderr.each_line do |line|
+    if line =~ /\A\s*([0-9.]+)\s+real\s+([0-9.]+)\s+user\s+([0-9.]+)\s+sys/
+      user = Regexp.last_match(2).to_f
+      sys = Regexp.last_match(3).to_f
+    end
+    user = Regexp.last_match(1).to_f if line =~ /\A\s*([0-9.]+)\s+user\b/
+    sys = Regexp.last_match(1).to_f if line =~ /\A\s*([0-9.]+)\s+sys\b/
+    if line =~ /\A\s*(\d+)\s+maximum resident set size\b/
+      rss_mb = Regexp.last_match(1).to_f / (RUBY_PLATFORM =~ /darwin/ ? 1024.0 * 1024.0 : 1024.0)
+    elsif line =~ /Maximum resident set size \(kbytes\):\s*(\d+)/
+      rss_mb = Regexp.last_match(1).to_f / 1024.0
+    elsif line =~ /User time \(seconds\):\s*([0-9.]+)/
+      user = Regexp.last_match(1).to_f
+    elsif line =~ /System time \(seconds\):\s*([0-9.]+)/
+      sys = Regexp.last_match(1).to_f
+    end
+  end
+  [(user || 0.0) + (sys || 0.0), rss_mb]
+end
+
+def run_command(env, argv, cwd)
+  prefix = time_prefix
+  command = prefix ? prefix + argv : argv
+  started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  stdout, stderr, status = Open3.capture3(child_env.merge(env), *command, chdir: cwd, unsetenv_others: true)
+  wall = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+  cpu, rss = parse_time(stderr)
+  [stdout, stderr, status.exitstatus || 255, wall, cpu, rss]
+end
+
+def command_for(config, suite_dir, workers)
+  cwd = File.join(ROOT, suite_dir)
+  target = "spec"
+  case config
+  when "serial"
+    [{}, ["bundle", "exec", "rspec", target], cwd]
+  when "v2"
+    exe = ensure_v2_gem
+    # 2.2.5 runs `rspec` from PATH; the one installed next to it is the one
+    # that sees its gems (CI has no global rspec).
+    env = { "GEM_HOME" => GEMS_V2, "GEM_PATH" => [GEMS_V2, gem_paths].join(File::PATH_SEPARATOR),
+            "PATH" => [File.join(GEMS_V2, "bin"), child_env["PATH"]].join(File::PATH_SEPARATOR) }
+    verify_v2_env(env)
+    [env, [RbConfig.ruby, exe, "_2.2.5_", "-n", workers.to_s, target], cwd]
+  when /\Alocal-(command|spawn|fork)(-static)?\z/
+    # Under the bundle so rspec-core resolves wherever Bundler installed it
+    # (CI keeps gems in vendor/bundle, invisible to a bare `ruby`).
+    pool = Regexp.last_match(1)
+    static = Regexp.last_match(2) ? ["--static"] : []
+    [{}, ["bundle", "exec", RbConfig.ruby, "-I", File.join(ROOT, "lib"), File.join(ROOT, "bin", "turbo_tests"),
+          "--pool", pool, *static, "-n", workers.to_s, target], cwd]
+  else
+    raise ArgumentError, "unknown config: #{config}"
+  end
+end
+
+def summarize(samples)
+  walls = samples.map(&:wall).sort
+  median = walls[walls.length / 2]
+  [median, walls.first, walls.last, samples.map(&:cpu).compact.sum / samples.length, samples.map(&:rss_mb).compact.max, samples.map(&:exit_code).uniq.sort]
+end
+
+def print_table(samples_by_key)
+  rows = [["suite", "config", "median wall s", "min", "max", "user+sys CPU s", "max RSS MB", "exit codes"]]
+  samples_by_key.each do |(suite, config), samples|
+    median, min, max, cpu, rss, exits = summarize(samples)
+    label = exits.any? { |code| code != 0 } ? "#{config} failed (exit #{exits.join(',')})" : config
+    rows << [suite, label, format("%.3f", median), format("%.3f", min), format("%.3f", max), format("%.3f", cpu), rss ? format("%.1f", rss) : "n/a", exits.join(",")]
+  end
+  widths = rows.transpose.map { |col| col.map(&:length).max }
+  rows.each { |row| puts row.each_with_index.map { |cell, idx| cell.ljust(widths[idx]) }.join(" | ") }
+end
+
+generate_fixtures
+suites = OPTIONS[:suites] || %w[uneven_8 uneven_64 slow_boot]
+configs = OPTIONS[:configs] || %w[serial v2 local-command-static local-spawn local-spawn-static local-fork local-fork-static]
+samples = []
+
+suites.each do |suite|
+  suite_dir = File.join("fixtures", "benchmark", suite)
+  configs.each do |config|
+    begin
+      env, argv, cwd = command_for(config, suite_dir, OPTIONS[:workers])
+      OPTIONS[:runs].times do
+        stdout, stderr, exit_code, wall, cpu, rss = run_command(env, argv, cwd)
+        samples << Sample.new(suite, config, (env.empty? ? argv : [env, argv]).inspect, wall, cpu, rss, exit_code, stdout, stderr)
+      end
+    rescue StandardError => e
+      samples << Sample.new(suite, config, "n/a", 0.0, 0.0, nil, 255, "", e.message)
+    end
+  end
+end
+
+print_table(samples.group_by { |sample| [sample.suite, sample.config] })
+
+if OPTIONS[:json]
+  write_file(File.expand_path(OPTIONS[:json], ROOT), JSON.pretty_generate(samples.map(&:to_h)))
+end
