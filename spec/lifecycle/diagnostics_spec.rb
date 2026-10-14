@@ -74,7 +74,7 @@ RSpec.describe TurboTests::Diagnostics do
 
   describe ".capture" do
     it "returns command output" do
-      expect(described_class.capture([RbConfig.ruby, "-e", "puts 'hello'"], 5)).to eq("hello\n")
+      expect(described_class.capture([RbConfig.ruby, "-e", "puts 'hello'"], 5)).to match(/\Ahello\r?\n\z/)
     end
 
     it "gives up on commands that outlive the timeout" do

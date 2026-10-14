@@ -14,7 +14,9 @@ module TurboTests
       def self.rspec_command(env = ENV)
         executable = env["RSPEC_EXECUTABLE"]
         return executable.split if executable && !executable.strip.empty?
-        return [env["BUNDLE_BIN_PATH"], "exec", "rspec"] if env["BUNDLE_BIN_PATH"] && !env["BUNDLE_BIN_PATH"].empty?
+        # BUNDLE_BIN_PATH is bundler's `exe/bundle` Ruby script: run it with
+        # this Ruby (Windows cannot exec a script directly: ENOEXEC).
+        return [RbConfig.ruby, env["BUNDLE_BIN_PATH"], "exec", "rspec"] if env["BUNDLE_BIN_PATH"] && !env["BUNDLE_BIN_PATH"].empty?
 
         ["rspec"]
       end

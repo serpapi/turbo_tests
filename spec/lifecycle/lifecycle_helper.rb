@@ -133,7 +133,7 @@ module LifecycleHelper
   end
 
   def plain(text)
-    text.to_s.dup.force_encoding(Encoding::UTF_8).scrub.gsub(/\e\[[\d;]*m/, "")
+    text.to_s.dup.force_encoding(Encoding::UTF_8).scrub.gsub(/\e\[[\d;]*m/, "").gsub("\r\n", "\n")
   end
 end
 

@@ -339,6 +339,9 @@ module TurboTests
     def output(text)
       return if text.nil? || text.empty? || @output_broken
 
+      # Windows workers already wrote through a text-mode stdout (\r\n); our
+      # own text-mode stdout would turn that into \r\r\n.
+      text = text.gsub("\r\n".b, "\n".b) if Pool.windows?
       @out.write(text)
       @output_dirty = true
     rescue Errno::EPIPE, IOError

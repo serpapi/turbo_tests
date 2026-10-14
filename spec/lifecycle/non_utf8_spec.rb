@@ -8,8 +8,9 @@ RSpec.describe "output that is not valid UTF-8 (fixtures/lifecycle/non_utf8_spec
           env: {"LANG" => "C", "LC_ALL" => "C"})
 
         expect(result.exitstatus).to eq(0), result.to_s
-        expect(result.stdout).to include("raw bytes: \xFF\xFE\n".b)
-        expect(result.stdout).to include("accent: é\n".b)
+        # Windows stdout is text mode: one \r\n per line, the bytes untouched.
+        expect(result.stdout).to match(Regexp.new("raw bytes: \xFF\xFE\r?\n".b))
+        expect(result.stdout).to match(Regexp.new("accent: é\r?\n".b))
         expect(plain(result.stdout)).to include("prints raw bytes and accents (é)", "1 example, 0 failures")
       end
     end
